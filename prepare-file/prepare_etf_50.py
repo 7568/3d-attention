@@ -1,11 +1,12 @@
 # -*- coding: UTF-8 -*-
 """
 Created by louis at 2022/6/2
-Description:
+Description:ETF50指数期权数据预处理
 """
 
 from multiprocessing import Pool, cpu_count
 
+import math
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -13,7 +14,7 @@ import os
 import shutil
 from functools import wraps
 
-from hedging_options.library import common as cm
+from library import common as cm
 
 
 def get_data_by_securityids(param):
@@ -36,7 +37,7 @@ def get_data_by_securityids(param):
 
 
 def run_still():
-    df = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER.csv', parse_dates=[
+    df = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_1}.csv', parse_dates=[
         'TradingDate', 'ExerciseDate'])
     print(df.columns)
     print(df['UnderlyingSecurityID'].unique())
@@ -71,28 +72,13 @@ def run_still():
     for _r in r:
         new_df = new_df.append(_r)
 
-    new_df.to_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER_2.csv')
+    new_df.to_csv(f'{DATA_HOME_PATH}/{file_name_1}_2.csv')
     exit(0)
-
-
-# 找出dirt_data中的数据对于的在交易基本信息表中的对应数据，产看其交易量和持仓量
-def check_data_2():
-    df = pd.read_csv(f'{DATA_HOME_PATH}/dirt_data.csv', index_col=0)
-    io_quotationbas = pd.read_csv(f'{DATA_HOME_PATH}/IO_QUOTATIONBAS.csv')
-    df = df.reset_index()
-    tmp = []
-    for index, row in tqdm(df.iterrows(), total=df.shape[0]):
-        _tmp = io_quotationbas[(io_quotationbas['SecurityID'] == row['SecurityID']) & (io_quotationbas[
-                                                                                           'TradingDate'] == row[
-                                                                                           'TradingDate'])]
-        tmp.append(_tmp.iloc[0].to_numpy())
-    dirt_data = pd.DataFrame(tmp, columns=io_quotationbas.columns)
-    dirt_data.to_csv(f'{DATA_HOME_PATH}/dirt_data_2.csv', index=False)
 
 
 # 查看一下 dirt_data 中的数据在重要参数表中，处在期权的整个持续期的哪个阶段
 def check_dirt_data_period():
-    df = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER_3.csv', index_col=0)
+    df = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_1}_3.csv', index_col=0)
     print(len(df['SecurityID'].unique()))
     dirt_data = pd.read_csv(f'{DATA_HOME_PATH}/dirt_data.csv', index_col=0)
     dirt_data = dirt_data.reset_index()
@@ -105,7 +91,7 @@ def check_dirt_data_period():
 
 # 找出那些在重要参数表中剩余的还有空值的数据
 def check_data():
-    df = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER_4.csv', index_col=0)
+    df = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_1}_4.csv', index_col=0)
     print(len(df['SecurityID'].unique()))
     # df = df.drop(columns=['ImpliedVolatility', 'DataType'])
     df = df.drop(columns=['DataType'])
@@ -139,9 +125,9 @@ def check_dirt_data():
     dirt_data.to_csv(f'{DATA_HOME_PATH}/dirt_data.csv', index=False)
 
 
-# IO_PRICINGPARAMETER 是	股指期权合约定价重要参数表 2017-06-01 至 2022-06-01
-# IO_QUOTATIONBAS 是 股指期权合约日交易基础表 	2013-11-29 至 2022-06-01
-# 先通过 IO_QUOTATIONBAS 找出那些没有交易量为0的期权，然后从 IO_PRICINGPARAMETER 中删去其信息
+# {file_name_1} 是	股指期权合约定价重要参数表 2017-06-01 至 2022-06-01
+# {file_name_2} 是 股指期权合约日交易基础表 	2013-11-29 至 2022-06-01
+# 先通过 {file_name_2} 找出那些没有交易量为0的期权，然后从 {file_name_1} 中删去其信息
 def remove_no_volume_data_precess(param):
     t_s = param['t_s']
     option_sensibility_df = param['option_sensibility_df']
@@ -171,8 +157,8 @@ def remove_dirt_data_precess(param):
 
 
 def get_no_volume_data():
-    volume_info_df = pd.read_csv(f'{DATA_HOME_PATH}/IO_QUOTATIONBAS.csv')
-    # option_sensibility_df = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER.csv')
+    volume_info_df = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_2}.csv')
+    # option_sensibility_df = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_1}.csv')
     # print(f'option_sensibility_df shape : {option_sensibility_df.shape}')
     volume_info_df = volume_info_df.reset_index()
     # t_s = pd.DataFrame(columns=['TradingDate', 'SecurityID'])
@@ -191,7 +177,7 @@ def get_no_volume_data():
 
 
 def remove_no_volume_data():
-    option_sensibility_df = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER.csv')
+    option_sensibility_df = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_1}.csv')
     print(f'option_sensibility_df shape : {option_sensibility_df.shape}')
     t_s = pd.read_csv(f'{DATA_HOME_PATH}/t_s.csv', index_col=0)
     print(f't_s shape : {t_s.shape}')
@@ -210,11 +196,11 @@ def remove_no_volume_data():
     for _r in r:
         new_df = new_df.append(_r)
     print(f'option_sensibility_df shape : {new_df.shape}')
-    new_df.to_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER_3.csv', index=False)
+    new_df.to_csv(f'{DATA_HOME_PATH}/{file_name_1}_3.csv', index=False)
 
 
 def remove_dirt_data():
-    option_sensibility_df = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER_3.csv')
+    option_sensibility_df = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_1}_3.csv')
     print(f'option_sensibility_df shape : {option_sensibility_df.shape}')
     dirt_data = pd.read_csv(f'{DATA_HOME_PATH}/dirt_data.csv', index_col=0)
     print(f't_s shape : {dirt_data.shape}')
@@ -233,7 +219,7 @@ def remove_dirt_data():
     for _r in r:
         new_df = new_df.append(_r)
     print(f'option_sensibility_df shape : {new_df.shape}')
-    new_df.to_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER_4.csv', index=False)
+    new_df.to_csv(f'{DATA_HOME_PATH}/{file_name_1}_4.csv', index=False)
 
 
 def assemble_next_day_features_precess(param):
@@ -265,57 +251,7 @@ def assemble_next_day_features_precess(param):
     return new_df
 
 
-# 将每一行数据的下一个交易日的数据加到当天来
-# def assemble_next_day_features(file_path, file_name):
-#     df = pd.read_csv(f'{DATA_HOME_PATH}/{file_path}/{file_name}', parse_dates=[
-#         'TradingDate', 'ExerciseDate'])
-#     option_ids = df['SecurityID'].unique()
-#     cpu_num = cpu_count() - 36
-#     data_chunks = cm.chunks_np(option_ids, cpu_num)
-#     param = []
-#     for data_chunk in data_chunks:
-#         ARGS_ = dict(option_ids=data_chunk, df=df)
-#         param.append(ARGS_)
-#     with Pool(cpu_num) as p:
-#         r = p.map(assemble_next_day_features_precess, param)
-#         p.close()
-#         p.join()
-#     print('run done!')
-#     new_df = pd.DataFrame()
-#     for _r in r:
-#         new_df = new_df.append(_r)
-#     print(f'option_sensibility_df shape : {new_df.shape}')
-#     new_df.to_csv(f'{DATA_HOME_PATH}/{file_path}/two_day_{file_name}', index=False)
 
-
-# def check_features():
-#     df = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER_5.csv', parse_dates=[
-#         'TradingDate', 'ExerciseDate'])
-#     option_ids = df['SecurityID'].unique()
-#     print(len(option_ids))
-#     i = 0
-#     for option_id in tqdm(option_ids, total=len(option_ids)):
-#         _options = df[df['SecurityID'] == option_id].sort_values(by=['TradingDate'])
-#         # print(_options)
-#         if _options.shape[0] > 25:
-#             i = i + 1
-#
-#     print(i)
-
-
-# 将上证50和沪深300分别进行存储  204000000140 沪深300 ,  204000000015 上证50
-def seperate_underlying_security():
-    df = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER_3.csv', parse_dates=[
-        'TradingDate', 'ExerciseDate'])
-    df = df.reset_index()
-    h_sh_300 = df[df['UnderlyingSecurityID'] == 204000000140]
-    sh_zh_50 = df[df['UnderlyingSecurityID'] == 204000000015]
-    if not (sh_zh_50.shape[0] + h_sh_300.shape[0] == df.shape[0]):
-        print('error')
-    h_sh_300 = h_sh_300[h_sh_300['TradingDate'] > pd.Timestamp('2020-01-01')]
-    h_sh_300.to_csv(f'{DATA_HOME_PATH}/raw_all.csv', index=False)
-    sh_zh_50.to_csv(f'{DATA_HOME_PATH}/sh_zh_50/raw_all.csv', index=False)
-    print('done')
 
 
 def check_seperate_underlying_security():
@@ -337,7 +273,7 @@ def show_same_symbol_diff_id(param):
 
 # 查看上证50和沪深300中期权的id是否有重复
 def check_options_id():
-    df = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER.csv')
+    df = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_1}.csv')
     option_ids = df['SecurityID'].unique()
 
     h_sh_300 = df.loc[df['UnderlyingSecurityID'] == 204000000140, 'SecurityID'].unique()
@@ -367,7 +303,7 @@ def check_options_id():
 
 
 def check_sh_zh_50():
-    df = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER.csv')
+    df = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_1}.csv')
     sh_zh_50 = df[df['UnderlyingSecurityID'] == 204000000015]
     print(sh_zh_50['TradingDate'].unique())
 
@@ -390,23 +326,23 @@ def remove_remaining_term_0_data():
 
 
 @cm.my_log
-def combine_all_data(ord_1, ord_2):
+def combine_all_data( ord_2):
     """
-    IO_PRICINGPARAMETER:股指期权合约定价重要参数表
+    {file_name_1}:股指期权合约定价重要参数表
     证券ID[SecurityID] 交易日期[TradingDate] 交易代码[Symbol] 交易所代码[ExchangeCode] 标的证券ID[UnderlyingSecurityID]
     标的证券交易代码[UnderlyingSecuritySymbol] 合约简称[ShortName] 认购认沽[CallOrPut] 行权价[StrikePrice] 行权日[ExerciseDate]
      收盘价[ClosePrice] 标的证券收盘价[UnderlyingScrtClose] 剩余年限[RemainingTerm] 无风险利率(%)[RisklessRate]
       历史波动率[HistoricalVolatility] 隐含波动率[ImpliedVolatility] 理论价格[TheoreticalPrice] Delta[Delta] Gamma[Gamma]
       Vega[Vega] Theta[Theta] Rho[Rho] 连续股息率[DividendYeild] 数据类型[DataType]
 
-    IO_QUOTATIONBAS: 股指期权合约日交易基础表
+    {file_name_2}: 股指期权合约日交易基础表
     证券ID[SecurityID] 交易日期[TradingDate] 交易代码[Symbol] 交易所代码[ExchangeCode] 合约简称[ShortName]
     交易日状态编码[TradingDayStatusID] 标的证券ID[UnderlyingSecurityID] 标的证券交易代码[UnderlyingSecuritySymbol]
     认购认沽[CallOrPut] 填充标识[Filling] 日开盘价[OpenPrice] 日最高价[HighPrice] 日最低价[LowPrice] 日收盘价[ClosePrice]
      日结算价[SettlePrice] 涨跌1[Change1] 涨跌2[Change2] 成交量[Volume] 持仓量[Position] 成交金额[Amount]
      数据类型[DataType]
 
-    IO_QUOTATIONDER:股指期权合约日交易衍生表
+    {file_name_3}:股指期权合约日交易衍生表
     证券ID[SecurityID] 交易所代码[ExchangeCode] 交易代码[Symbol] 合约简称[ShortName] 认购认沽[CallOrPut]
     交易日期[TradingDate] 标的证券ID[UnderlyingSecurityID] 填充标识[Filling] 连续合约标识[ContinueSign]
     主力合约标识[MainSign] 昨收盘价[PreClosePrice] 昨结算价[PreSettlePrice] 昨持仓量[PrePosition]
@@ -415,9 +351,13 @@ def combine_all_data(ord_1, ord_2):
     当日单张维持保证金[MaintainingMargin] 数据类型[DataType] 涨跌幅[ChangeRatio]
     :return:
     """
-    df_1 = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER_{ord_1}.csv')
-    df_2 = pd.read_csv(f'{DATA_HOME_PATH}/IO_QUOTATIONBAS_{ord_1}.csv')
-    df_3 = pd.read_csv(f'{DATA_HOME_PATH}/IO_QUOTATIONDER_{ord_1}.csv')
+    df_1 = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_1}.csv', parse_dates=['TradingDate'])
+    df_2 = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_2}.csv', parse_dates=['TradingDate'])
+    df_3 = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_3}.csv', parse_dates=['TradingDate'])
+    df_3 = df_3[df_3['UnderlyingSecurityID']==202000001384]
+    df_1 = df_1[df_1['DataType'] == 1]
+    df_2 = df_2[df_2['DataType'] == 1]
+    df_3 = df_3[df_3['DataType'] == 1]
 
     print(f'df_1.shape : {df_1.shape} , df_2.shape : {df_2.shape} , df_3.shape : {df_3.shape}')
 
@@ -458,18 +398,29 @@ def combine_all_data(ord_1, ord_2):
 
     df_1 = df_1[['SecurityID', 'TradingDate', 'CallOrPut', 'StrikePrice', 'ClosePrice', 'UnderlyingScrtClose',
                  'RemainingTerm', 'RisklessRate', 'HistoricalVolatility', 'ImpliedVolatility', 'TheoreticalPrice',
-                 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho', 'DividendYeild']]
+                ]]
 
     df_2 = df_2[['SecurityID', 'TradingDate', 'TradingDayStatusID', 'Filling', 'OpenPrice', 'HighPrice', 'LowPrice',
                  'SettlePrice', 'Change1', 'Change2', 'Volume', 'Position', 'Amount']]
 
-    df_3 = df_3[['SecurityID', 'TradingDate', 'ContinueSign', 'PreClosePrice', 'PreSettlePrice', 'PrePosition',
+    df_3 = df_3[['SecurityID', 'TradingDate', 'ContinueSign',
                  'PositionChange', 'MainSign',
                  'AvgPrice', 'ClosePriceChangeRatio', 'SettlePriceChangeRatio', 'Amplitude', 'LimitUp', 'LimitDown',
                  'MaintainingMargin', 'ChangeRatio']]
 
-    df = pd.merge(df_1, df_2, how='left', on=['TradingDate', 'SecurityID'])
-    df = pd.merge(df, df_3, how='left', on=['TradingDate', 'SecurityID'])
+
+    df_1 = df_1[df_1['SecurityID'].isin(df_3['SecurityID'].to_numpy())]
+    print(f'df_1.shape : {df_1.shape}')
+    df_2 = df_2[df_2['SecurityID'].isin(df_3['SecurityID'].to_numpy())]
+    print(f'df_2.shape : {df_2.shape}')
+    print(f'df_3.shape : {df_3.shape}')
+    print(f"df_1['SecurityID'].unique() : {len(df_1['SecurityID'].unique())} ")
+    print(f"df_2['SecurityID'].unique() : {len(df_2['SecurityID'].unique())} ")
+    print(f"df_3['SecurityID'].unique() : {len(df_3['SecurityID'].unique())} ")
+    df = pd.merge(df_1, df_2, how='left', on=['SecurityID','TradingDate'])
+    df = pd.merge(df, df_3, how='left', on=['SecurityID','TradingDate'])
+    print(f'merged out shape : {df.shape}')
+
 
     if os.path.exists(f'{DATA_HOME_PATH}/all_raw_data_{ord_2}.csv'):
         os.remove(f'{DATA_HOME_PATH}/all_raw_data_{ord_2}.csv')
@@ -490,74 +441,6 @@ def remove_file_if_exists(path):
     if os.path.exists(path):
         os.remove(path)
 
-
-@cm.my_log
-def depart_data(ord):
-    """
-    将数据分成沪深300和上证50
-    :return:
-    """
-    # 	股指期权合约定价重要参数表
-    df = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER.csv')
-    sh_zh_50_0 = df[df['UnderlyingSecurityID'] == 204000000015]
-    h_sh_300_0 = df[df['UnderlyingSecurityID'] == 204000000140]
-
-    # 股指期权合约日交易基础表
-    df = pd.read_csv(f'{DATA_HOME_PATH}/IO_QUOTATIONBAS.csv')
-    sh_zh_50_1 = df[df['UnderlyingSecurityID'] == 204000000015]
-    h_sh_300_1 = df[df['UnderlyingSecurityID'] == 204000000140]
-
-    # 股指期权合约日交易衍生表
-    df = pd.read_csv(f'{DATA_HOME_PATH}/IO_QUOTATIONDER.csv')
-    sh_zh_50_2 = df[df['UnderlyingSecurityID'] == 204000000015]
-    h_sh_300_2 = df[df['UnderlyingSecurityID'] == 204000000140]
-
-    if os.path.exists(f'{DATA_HOME_PATH}/sh_zh_50'):
-        shutil.rmtree(f'{DATA_HOME_PATH}/sh_zh_50')
-    if os.path.exists(f'{DATA_HOME_PATH}/h_sh_300'):
-        shutil.rmtree(f'{DATA_HOME_PATH}/h_sh_300')
-
-    os.mkdir(f'{DATA_HOME_PATH}/sh_zh_50')
-    os.mkdir(f'{DATA_HOME_PATH}/h_sh_300')
-
-    remove_file_if_exists(f'{DATA_HOME_PATH}/sh_zh_50/IO_PRICINGPARAMETER_{ord}.csv')
-    remove_file_if_exists(f'{DATA_HOME_PATH}/h_sh_300/IO_PRICINGPARAMETER_{ord}.csv')
-
-    remove_file_if_exists(f'{DATA_HOME_PATH}/sh_zh_50/IO_QUOTATIONBAS_{ord}.csv')
-    remove_file_if_exists(f'{DATA_HOME_PATH}/h_sh_300/IO_QUOTATIONBAS_{ord}.csv')
-
-    remove_file_if_exists(f'{DATA_HOME_PATH}/sh_zh_50/IO_QUOTATIONDER_{ord}.csv')
-    remove_file_if_exists(f'{DATA_HOME_PATH}/h_sh_300/IO_QUOTATIONDER_{ord}.csv')
-
-    sh_zh_50_0.to_csv(f'{DATA_HOME_PATH}/sh_zh_50/IO_PRICINGPARAMETER_{ord}.csv', index=False)
-    h_sh_300_0.to_csv(f'{DATA_HOME_PATH}/h_sh_300/IO_PRICINGPARAMETER_{ord}.csv', index=False)
-
-    sh_zh_50_1.to_csv(f'{DATA_HOME_PATH}/sh_zh_50/IO_QUOTATIONBAS_{ord}.csv', index=False)
-    h_sh_300_1.to_csv(f'{DATA_HOME_PATH}/h_sh_300/IO_QUOTATIONBAS_{ord}.csv', index=False)
-
-    sh_zh_50_2.to_csv(f'{DATA_HOME_PATH}/sh_zh_50/IO_QUOTATIONDER_{ord}.csv', index=False)
-    h_sh_300_2.to_csv(f'{DATA_HOME_PATH}/h_sh_300/IO_QUOTATIONDER_{ord}.csv', index=False)
-
-
-# def remove_no_volume_data_2():
-#     df = pd.read_csv(f'{DATA_HOME_PATH}/all_raw_data.csv', parse_dates=['TradingDate'])
-#     # df = df[df['TradingDate'] > pd.Timestamp('2020-01-01')]
-#     print(df.shape)
-#     # position_index = df[(df['Position'] < 1)].index
-#
-#     amount_index = df[(df['Amount'] < 0)].index  # 当天可以没有成交金额，因为有可能刚开出来，没交易，后面交易多了
-#     remainingterm_index = df[(df['RemainingTerm'] == 0)].index  # 剩余年限为0
-#     # preposition_index = df[(df['PrePosition'] == 0)].index
-#     # df['PositionChange'] = df['Position'] - df['PrePosition']
-#
-#     print(f', amount_index : {amount_index.shape} , remainingterm_index :'
-#           f' {remainingterm_index.shape}')
-#     df = df.drop(index=amount_index.append(remainingterm_index).unique())
-#     # df = df.drop(index=amount_index)
-#     print(df.shape)
-#     df.to_csv(f'{DATA_HOME_PATH}/all_clean_data.csv', index=False)
-#
-#     print('remove_no_volume_data_2 done !')
 
 
 @cm.my_log
@@ -642,32 +525,12 @@ def remove_end5_trade_date_data(ord_1, ord_2):
     # new_df.to_csv(f'{DATA_HOME_PATH}/all_raw_data_{ord_2}.csv', index=False)
 
 
-@cm.my_log
-def check_each_data_num_by_id(ord_1):
-    """
-    检查每个表中的相同期权个数是否一致
-    """
-    df_1 = pd.read_csv(f'{DATA_HOME_PATH}/IO_PRICINGPARAMETER_{ord_1}.csv')
-    df_2 = pd.read_csv(f'{DATA_HOME_PATH}/IO_QUOTATIONBAS_{ord_1}.csv')
-    df_3 = pd.read_csv(f'{DATA_HOME_PATH}/IO_QUOTATIONDER_{ord_1}.csv')
-    df_1_ids = np.sort(df_1['SecurityID'].unique())
-    df_2_ids = np.sort(df_2['SecurityID'].unique())
-    df_3_ids = np.sort(df_3['SecurityID'].unique())
-    # df_3_ids[:df_1_ids.size]-df_2_ids
-    # 删掉 中多余的SecurityID对应的期权数据
-    for df_3_id in df_3_ids[df_1_ids.size:]:
-        df_3 = df_3[df_3['SecurityID'] != df_3_id]
-    df_3_ids = np.sort(df_3['SecurityID'].unique())
-    max_val = (df_3_ids - df_2_ids).max()
-    df_3.to_csv(f'{DATA_HOME_PATH}/IO_QUOTATIONDER_{ord_1}.csv')
-    print(f'df_1_ids : {df_1_ids.size} , df_2_ids : {df_2_ids.size} , df_3_ids : {df_3_ids.size}')
 
 
 @cm.my_log
 def check_null_by_id(ord_1):
     contain_null_ids = []
     df = pd.read_csv(f'{DATA_HOME_PATH}/all_raw_data_{ord_1}.csv', parse_dates=['TradingDate'])
-    trading_date = df.sort_values(by=['TradingDate'])['TradingDate'].unique()
     df.drop(columns=['ContinueSign'], axis=1, inplace=True)
     print(f'df.shape : {df.shape}')
     option_ids = df['SecurityID'].unique()
@@ -769,25 +632,25 @@ def do_append_before4_days_data(param):
                 if i > j:
                     # print(i)
                     sorted_options.loc[i, b_c[j - 1]] = np.array(sorted_options.copy().iloc[i - j][b_0_c])
-                else:
-                    trading_date = sorted_options.iloc[i]['TradingDate']
+                # else:
+                #     trading_date = sorted_options.iloc[i]['TradingDate']
+                #
+                #     b_c_s = np.array(b_0_c).tolist()
+                #     b_c_s.append('TradingDate')
+                #     pre_j_data = get_pre_j_data(start_trading_date, df[b_c_s], j, trading_date)
+                #     if pre_j_data is None:
+                #         need_to_drop_row_index.append(i)
+                #     else:
+                #         pre_j_data.drop('TradingDate', axis=1, inplace=True)
+                #         sorted_options.loc[i, b_c[j - 1]] = np.array(pre_j_data).mean(axis=0)
 
-                    b_c_s = np.array(b_0_c).tolist()
-                    b_c_s.append('TradingDate')
-                    pre_j_data = get_pre_j_data(start_trading_date, df[b_c_s], j, trading_date)
-                    if pre_j_data is None:
-                        need_to_drop_row_index.append(i)
-                    else:
-                        pre_j_data.drop('TradingDate', axis=1, inplace=True)
-                        sorted_options.loc[i, b_c[j - 1]] = np.array(pre_j_data).mean(axis=0)
-
-                    # if before_trading_data.shape[0]==0:
-                    #     # _index = sorted_options.loc[i].index
-                    #     need_to_drop_row_index.append(i)
-                    #     # sorted_options.drop(columns=no_need_columns, axis=1, inplace=True)
-                    # else:
-                    #     sorted_options.loc[i, b_c[j]] = np.array(before_trading_data).mean(axis=0)
-        (need_to_drop_row_index.drop(i) for i in np.unique(need_to_drop_row_index))
+                # if before_trading_data.shape[0]==0:
+                #     # _index = sorted_options.loc[i].index
+                #     need_to_drop_row_index.append(i)
+                #     # sorted_options.drop(columns=no_need_columns, axis=1, inplace=True)
+                # else:
+                #     sorted_options.loc[i, b_c[j]] = np.array(before_trading_data).mean(axis=0)
+        # (need_to_drop_row_index.drop(i) for i in np.unique(need_to_drop_row_index))
         sorted_options_list.append(sorted_options)
     return pd.concat([_r for _r in sorted_options_list], ignore_index=True)
 
@@ -806,11 +669,11 @@ def append_before4_days_data(ord_1, ord_2):
 
     before_0_column = ['StrikePrice', 'ClosePrice', 'UnderlyingScrtClose', 'RisklessRate', 'HistoricalVolatility',
                        'ImpliedVolatility',
-                       'TheoreticalPrice', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho', 'DividendYeild', 'MainSign',
-                       'OpenPrice', 'PositionChange', 'PreClosePrice', 'PrePosition', 'RemainingTerm', 'PreSettlePrice',
+                       'TheoreticalPrice', 'MainSign',
+                       'OpenPrice', 'PositionChange',  'RemainingTerm',
                        'HighPrice', 'LowPrice', 'SettlePrice', 'Change1', 'Change2', 'Volume', 'Position', 'Amount',
                        'AvgPrice', 'ClosePriceChangeRatio', 'SettlePriceChangeRatio', 'Amplitude', 'LimitUp',
-                       'LimitDown', 'MaintainingMargin', 'ChangeRatio', 'CallOrPut','NEXT_OPEN','NEXT_HIGH']
+                       'LimitDown', 'MaintainingMargin', 'ChangeRatio', 'CallOrPut', 'NEXT_OPEN', 'NEXT_HIGH']
     before_1_column = [i + '_1' for i in before_0_column]
     before_2_column = [i + '_2' for i in before_0_column]
     before_3_column = [i + '_3' for i in before_0_column]
@@ -1025,16 +888,16 @@ def append_payoff_rate_1(ord_1, ord_2, up_rate=0.1):
     # C_0 = df['ClosePrice']
     # C_1 = df['NEXT_OPEN']
     # H_1 = df['NEXT_HIGH']
-    _ra = (df['NEXT_HIGH']-df['NEXT_OPEN']) / df['NEXT_OPEN']  # （明天的最高价-明天的开盘价）除以明天的开盘价
-    print(np.sum(_ra > up_rate)/len(_ra > up_rate))
+    _ra = (df['NEXT_HIGH'] - df['NEXT_OPEN']) / df['NEXT_OPEN']  # （明天的最高价-明天的开盘价）除以明天的开盘价
+    print(np.sum(_ra > up_rate) / len(_ra > up_rate))
     df.loc[_ra > up_rate, 'up_and_down'] = 1
-    _ra_1 = (df['NEXT_HIGH_1']-df['NEXT_OPEN_1']) / df['NEXT_OPEN_1']  # 今天天的开盘价除以昨天的平均价
+    _ra_1 = (df['NEXT_HIGH_1'] - df['NEXT_OPEN_1']) / df['NEXT_OPEN_1']  # 今天天的开盘价除以昨天的平均价
     df.loc[_ra_1 > up_rate, 'up_and_down_1'] = 1
-    _ra_2 = (df['NEXT_HIGH_2']-df['NEXT_OPEN_2']) / df['NEXT_OPEN_2']  # 昨天天的开盘价除以前天的平均价
+    _ra_2 = (df['NEXT_HIGH_2'] - df['NEXT_OPEN_2']) / df['NEXT_OPEN_2']  # 昨天天的开盘价除以前天的平均价
     df.loc[_ra_2 > up_rate, 'up_and_down_2'] = 1
-    _ra_3 = (df['NEXT_HIGH_3']-df['NEXT_OPEN_3']) / df['NEXT_OPEN_3']  # 依次类推
+    _ra_3 = (df['NEXT_HIGH_3'] - df['NEXT_OPEN_3']) / df['NEXT_OPEN_3']  # 依次类推
     df.loc[_ra_3 > up_rate, 'up_and_down_3'] = 1
-    _ra_4 = (df['NEXT_HIGH_4']-df['NEXT_OPEN_4']) / df['NEXT_OPEN_4']
+    _ra_4 = (df['NEXT_HIGH_4'] - df['NEXT_OPEN_4']) / df['NEXT_OPEN_4']
     df.loc[_ra_4 > up_rate, 'up_and_down_4'] = 1
     df.to_csv(f'{DATA_HOME_PATH}/all_raw_data_{ord_2}.csv', index=False)
 
@@ -1078,11 +941,10 @@ def retype_cat_columns(ord_1, ord_2):
     """
     df = pd.read_csv(f'{DATA_HOME_PATH}/all_raw_data_{ord_1}.csv', parse_dates=['TradingDate'])
     # trading_date = df.sort_values(by=['TradingDate'])['TradingDate'].unique()
-    cat_features = ['CallOrPut', 'MainSign', 'up_and_down']
+    cat_features = ['CallOrPut', 'MainSign']
     for i in range(1, 5):
         cat_features.append(f'CallOrPut_{i}')
         cat_features.append(f'MainSign_{i}')
-        cat_features.append(f'up_and_down_{i}')
     df = df.astype({j: int for j in cat_features})
     df.to_csv(f'{DATA_HOME_PATH}/all_raw_data_{ord_2}.csv', index=False)
 
@@ -1097,33 +959,44 @@ def rename_raw_data(ord_1):
     os.rename(f'{DATA_HOME_PATH}/all_raw_data_{ord_1}.csv', f'{DATA_HOME_PATH}/all_raw_data.csv')
 
 
-# DATA_HOME_PATH = '/home/liyu/data/hedging-option/china-market'
-# DATA_HOME_PATH = '/home/liyu/data/hedging-option/20140101-20160229'
-# DATA_HOME_PATH = '/home/liyu/data/hedging-option/20140101-20220321'
-# DATA_HOME_PATH = '/home/liyu/data/hedging-option/20140101-20221124'
-# DATA_HOME_PATH = '/home/liyu/data/hedging-option/20160301-20190531'
-# DATA_HOME_PATH = '/home/liyu/data/hedging-option/20160701-20221124'
-# DATA_HOME_PATH = '/home/liyu/data/hedging-option/20190601-20221123'
-# DATA_HOME_PATH = '/home/liyu/data/hedging-option/20190701-20221124'
-up_rete=0 # 0, 0.1 , 0.05, 0.01
-DATA_HOME_PATH = f'/home/liyu/data/hedging-option/20190701-20221124_{up_rete}'
-OPTION_SYMBOL = 'h_sh_300'
+@cm.my_log
+def split_c_p_save():
+    df = pd.read_csv(f'{DATA_HOME_PATH}/all_raw_data.csv', parse_dates=['TradingDate'])
+    print(f'df.shape : {df.shape}')
+    df_c = df[df['CallOrPut'] == 0]
+    df_p = df[df['CallOrPut'] == 1]
+    print(f'df_c.shape : {df_c.shape}')
+    print(f'df_p.shape : {df_p.shape}')
+    df_c.to_csv(f'{DATA_HOME_PATH}/all_raw_data_c.csv', index=False)
+    df_p.to_csv(f'{DATA_HOME_PATH}/all_raw_data_p.csv', index=False)
+
+
+
+DATA_HOME_PATH = f'/home/liyu/data/hedging-option/20170101-20230101/ETF50-option'
+
+
+file_name_1 = 'SO_PricingParameter'
+file_name_2 = 'SO_QuotationBas'
+file_name_3 = 'SO_QuotationDer'
 
 if __name__ == '__main__':
-    DATA_HOME_PATH = DATA_HOME_PATH + "/" + OPTION_SYMBOL + "/"
-    append_payoff_rate_1(11, '12_1', up_rete)  # 得到期权是涨还是跌，此处的涨跌的判断是根据明天早上，得到开盘价之后，再对明天的最高价来预测的
+    append_before4_days_data(10, 11)  # 将前4天的数据追加到当天，不够4天的用0填充
+    # append_next_price(10, 11)  # 得到下一天的期权价格数据
+    # append_next_price_1(10, 11)  # 得到下一天的期权开盘价格数据
+    # append_real_hedging_rate(11, 12)  # 得到真实的对冲比例
+    # append_payoff_rate(11, '12_1')  # 得到期权是涨还是跌,此处的涨跌的判断是根据今天的收盘价，再对明天的开盘价来预测的
+    append_payoff_rate_1(11, '12_1', 0.05)  # 得到期权是涨还是跌，此处的涨跌的判断是根据明天早上，得到开盘价之后，再对明天的最高价来预测的
     check_null_by_id('12_1')
     retype_cat_columns('12_1', 13)  # 将分类数据设置成int型
     # get_expand_head()  # 查看填充效果
 
     rename_raw_data(13)
+    split_c_p_save()
 
 if __name__ == '__main1__':
-    depart_data(1)
-    DATA_HOME_PATH = DATA_HOME_PATH + "/" + OPTION_SYMBOL + "/"
-    check_each_data_num_by_id(1)
-    combine_all_data(1, 3)
-    remove_filling_not0_data(3, 4)  # 删除原始表中节假日填充的数据
+
+    combine_all_data(1)
+    remove_filling_not0_data(1, 4)  # 删除原始表中节假日填充的数据
     remove_real_trade_days_less28(4, 5)  # 将合约交易天数小于28天的删除
     remove_end5_trade_date_data(5, 6)  # 将每份期权合约交易的最后5天的数据删除
     check_volume(6, 7)  # 将成交量为0的数据中存在nan的地方填充0
@@ -1142,3 +1015,4 @@ if __name__ == '__main1__':
     # get_expand_head()  # 查看填充效果
 
     rename_raw_data(13)
+    split_c_p_save()
