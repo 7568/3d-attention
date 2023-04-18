@@ -507,6 +507,9 @@ def combine_all_data(ord_1, ord_2):
     #     prev_date = i
     #
     # df = df_m
+    df = cm.sub_time(df)
+    df = cm.sub_type(df, 'C')
+    df = cm.reformatt_data(df)
 
     if os.path.exists(f'{DATA_HOME_PATH}/all_raw_data_{ord_2}.csv'):
         os.remove(f'{DATA_HOME_PATH}/all_raw_data_{ord_2}.csv')
@@ -842,8 +845,10 @@ def append_before4_days_data(ord_1, ord_2):
     print(f'df.shape : {df.shape}')
 
     before_0_column = ['StrikePrice', 'ClosePrice', 'UnderlyingScrtClose', 'RisklessRate', 'HistoricalVolatility',
-                       'ImpliedVolatility',
-                       'TheoreticalPrice', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho', 'DividendYeild', 'MainSign',
+                       'ImpliedVolatility', 'rate_1_formatted', 'rate_2_formatted', 'rate_3_formatted',
+                       'rate_7_formatted', 'rate_14_formatted', 'rate_21_formatted',
+                       'TheoreticalPrice', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho',
+                       'DividendYeild', 'MainSign',
                        'OpenPrice', 'PositionChange', 'PreClosePrice', 'PrePosition', 'RemainingTerm', 'PreSettlePrice',
                        'HighPrice', 'LowPrice', 'SettlePrice', 'Change1', 'Change2', 'Volume', 'Position', 'Amount',
                        'AvgPrice', 'ClosePriceChangeRatio', 'SettlePriceChangeRatio', 'Amplitude', 'LimitUp',
@@ -1158,7 +1163,13 @@ DATA_HOME_PATH = f'/home/liyu/data/hedging-option/20170101-20230101/index-option
 OPTION_SYMBOL = 'h_sh_300'
 # OPTION_SYMBOL = 'ETF50'
 
+if __name__ == '__main__':
+    DATA_HOME_PATH = DATA_HOME_PATH + "/" + OPTION_SYMBOL + "/"
+    append_before4_days_data(10, 11)  # 将前4天的数据追加到当天，不够4天的用0填充
 
+    retype_cat_columns(11, 13)  # 将分类数据设置成int型
+
+    rename_raw_data(13)
 
 if __name__ == '__main1__':
     depart_data(1)
@@ -1178,10 +1189,9 @@ if __name__ == '__main1__':
     # append_next_price_1(10, 11)  # 得到下一天的期权开盘价格数据
     # append_real_hedging_rate(11, 12)  # 得到真实的对冲比例
     # append_payoff_rate(11, '12_1')  # 得到期权是涨还是跌,此处的涨跌的判断是根据今天的收盘价，再对明天的开盘价来预测的
-    append_payoff_rate_1(11, '12_1', 0.05)  # 得到期权是涨还是跌，此处的涨跌的判断是根据明天早上，得到开盘价之后，再对明天的最高价来预测的
-    check_null_by_id('12_1')
-    retype_cat_columns('12_1', 13)  # 将分类数据设置成int型
+    # append_payoff_rate_1(11, '12_1', 0.05)  # 得到期权是涨还是跌，此处的涨跌的判断是根据明天早上，得到开盘价之后，再对明天的最高价来预测的
+    # check_null_by_id('12_1')
+    retype_cat_columns(11, 13)  # 将分类数据设置成int型
     # get_expand_head()  # 查看填充效果
 
     rename_raw_data(13)
-    split_c_p_save()

@@ -9,6 +9,7 @@ import logging
 
 import lightgbm.basic
 from sklearn.metrics import confusion_matrix, auc, accuracy_score,f1_score
+from sklearn.metrics import mean_squared_error,mean_absolute_error
 import numpy as np
 
 
@@ -85,7 +86,7 @@ def reformat_data(training_df, validation_df, testing_df, not_use_pre_data=False
     :param not_use_pre_data:
     :return:
     """
-    target_fea = 'up_and_down'
+    target_fea = 'ClosePrice'
     train_x = training_df.copy()
     # train_x = train_x.iloc[:,:-5]
     train_y = training_df[target_fea]
@@ -121,3 +122,8 @@ def mse_loss(y_pred, y_val):
     grad = 2*(y_val-y_pred)
     hess = np.repeat(2,y_val.shape[0])
     return grad, hess
+
+def show_regression_result(y_test_true, y_test_hat):
+    rmse = mean_squared_error(y_test_true, y_test_hat, squared=False)
+    mae = mean_absolute_error(y_test_true, y_test_hat)
+    print(f'rmse : {rmse} , mae : {mae}')

@@ -251,9 +251,6 @@ def assemble_next_day_features_precess(param):
     return new_df
 
 
-
-
-
 def check_seperate_underlying_security():
     h_sh_300 = pd.read_csv(f'{DATA_HOME_PATH}/all.csv')
     # sh_zh_50 = pd.read_csv(f'{DATA_HOME_PATH}/sh_zh_50/all.csv')
@@ -326,7 +323,7 @@ def remove_remaining_term_0_data():
 
 
 @cm.my_log
-def combine_all_data( ord_2):
+def combine_all_data(ord_2):
     """
     {file_name_1}:股指期权合约定价重要参数表
     证券ID[SecurityID] 交易日期[TradingDate] 交易代码[Symbol] 交易所代码[ExchangeCode] 标的证券ID[UnderlyingSecurityID]
@@ -354,7 +351,7 @@ def combine_all_data( ord_2):
     df_1 = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_1}.csv', parse_dates=['TradingDate'])
     df_2 = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_2}.csv', parse_dates=['TradingDate'])
     df_3 = pd.read_csv(f'{DATA_HOME_PATH}/{file_name_3}.csv', parse_dates=['TradingDate'])
-    df_3 = df_3[df_3['UnderlyingSecurityID']==202000001384]
+    df_3 = df_3[df_3['UnderlyingSecurityID'] == 202000001384]
     df_1 = df_1[df_1['DataType'] == 1]
     df_2 = df_2[df_2['DataType'] == 1]
     df_3 = df_3[df_3['DataType'] == 1]
@@ -398,7 +395,7 @@ def combine_all_data( ord_2):
 
     df_1 = df_1[['SecurityID', 'TradingDate', 'CallOrPut', 'StrikePrice', 'ClosePrice', 'UnderlyingScrtClose',
                  'RemainingTerm', 'RisklessRate', 'HistoricalVolatility', 'ImpliedVolatility', 'TheoreticalPrice',
-                ]]
+                 ]]
 
     df_2 = df_2[['SecurityID', 'TradingDate', 'TradingDayStatusID', 'Filling', 'OpenPrice', 'HighPrice', 'LowPrice',
                  'SettlePrice', 'Change1', 'Change2', 'Volume', 'Position', 'Amount']]
@@ -408,7 +405,6 @@ def combine_all_data( ord_2):
                  'AvgPrice', 'ClosePriceChangeRatio', 'SettlePriceChangeRatio', 'Amplitude', 'LimitUp', 'LimitDown',
                  'MaintainingMargin', 'ChangeRatio']]
 
-
     df_1 = df_1[df_1['SecurityID'].isin(df_3['SecurityID'].to_numpy())]
     print(f'df_1.shape : {df_1.shape}')
     df_2 = df_2[df_2['SecurityID'].isin(df_3['SecurityID'].to_numpy())]
@@ -417,10 +413,12 @@ def combine_all_data( ord_2):
     print(f"df_1['SecurityID'].unique() : {len(df_1['SecurityID'].unique())} ")
     print(f"df_2['SecurityID'].unique() : {len(df_2['SecurityID'].unique())} ")
     print(f"df_3['SecurityID'].unique() : {len(df_3['SecurityID'].unique())} ")
-    df = pd.merge(df_1, df_2, how='left', on=['SecurityID','TradingDate'])
-    df = pd.merge(df, df_3, how='left', on=['SecurityID','TradingDate'])
+    df = pd.merge(df_1, df_2, how='left', on=['SecurityID', 'TradingDate'])
+    df = pd.merge(df, df_3, how='left', on=['SecurityID', 'TradingDate'])
     print(f'merged out shape : {df.shape}')
-
+    df = cm.sub_time(df)
+    df = cm.sub_type(df, 'C')
+    df = cm.reformatt_data(df)
 
     if os.path.exists(f'{DATA_HOME_PATH}/all_raw_data_{ord_2}.csv'):
         os.remove(f'{DATA_HOME_PATH}/all_raw_data_{ord_2}.csv')
@@ -440,7 +438,6 @@ def combine_all_data( ord_2):
 def remove_file_if_exists(path):
     if os.path.exists(path):
         os.remove(path)
-
 
 
 @cm.my_log
@@ -523,8 +520,6 @@ def remove_end5_trade_date_data(ord_1, ord_2):
     #     new_df = new_df.append(_r)
     # print(f'new_df.shape : {new_df.shape} , df.shape[0]-option_ids.size()*5 :{df.shape[0] - option_ids.size * 5}')
     # new_df.to_csv(f'{DATA_HOME_PATH}/all_raw_data_{ord_2}.csv', index=False)
-
-
 
 
 @cm.my_log
@@ -668,9 +663,9 @@ def append_before4_days_data(ord_1, ord_2):
     print(f'df.shape : {df.shape}')
 
     before_0_column = ['StrikePrice', 'ClosePrice', 'UnderlyingScrtClose', 'RisklessRate', 'HistoricalVolatility',
-                       'ImpliedVolatility',
-                       'TheoreticalPrice', 'MainSign',
-                       'OpenPrice', 'PositionChange',  'RemainingTerm',
+                       'ImpliedVolatility', 'rate_1_formatted', 'rate_2_formatted', 'rate_3_formatted',
+                       'TheoreticalPrice', 'MainSign', 'rate_7_formatted', 'rate_14_formatted',
+                       'OpenPrice', 'PositionChange', 'RemainingTerm', 'rate_21_formatted',
                        'HighPrice', 'LowPrice', 'SettlePrice', 'Change1', 'Change2', 'Volume', 'Position', 'Amount',
                        'AvgPrice', 'ClosePriceChangeRatio', 'SettlePriceChangeRatio', 'Amplitude', 'LimitUp',
                        'LimitDown', 'MaintainingMargin', 'ChangeRatio', 'CallOrPut', 'NEXT_OPEN', 'NEXT_HIGH']
@@ -971,9 +966,7 @@ def split_c_p_save():
     df_p.to_csv(f'{DATA_HOME_PATH}/all_raw_data_p.csv', index=False)
 
 
-
 DATA_HOME_PATH = f'/home/liyu/data/hedging-option/20170101-20230101/ETF50-option'
-
 
 file_name_1 = 'SO_PricingParameter'
 file_name_2 = 'SO_QuotationBas'
@@ -981,20 +974,13 @@ file_name_3 = 'SO_QuotationDer'
 
 if __name__ == '__main__':
     append_before4_days_data(10, 11)  # 将前4天的数据追加到当天，不够4天的用0填充
-    # append_next_price(10, 11)  # 得到下一天的期权价格数据
-    # append_next_price_1(10, 11)  # 得到下一天的期权开盘价格数据
-    # append_real_hedging_rate(11, 12)  # 得到真实的对冲比例
-    # append_payoff_rate(11, '12_1')  # 得到期权是涨还是跌,此处的涨跌的判断是根据今天的收盘价，再对明天的开盘价来预测的
-    append_payoff_rate_1(11, '12_1', 0.05)  # 得到期权是涨还是跌，此处的涨跌的判断是根据明天早上，得到开盘价之后，再对明天的最高价来预测的
-    check_null_by_id('12_1')
-    retype_cat_columns('12_1', 13)  # 将分类数据设置成int型
+
+    retype_cat_columns(11, 13)  # 将分类数据设置成int型
     # get_expand_head()  # 查看填充效果
 
     rename_raw_data(13)
-    split_c_p_save()
 
 if __name__ == '__main1__':
-
     combine_all_data(1)
     remove_filling_not0_data(1, 4)  # 删除原始表中节假日填充的数据
     remove_real_trade_days_less28(4, 5)  # 将合约交易天数小于28天的删除
@@ -1009,10 +995,9 @@ if __name__ == '__main1__':
     # append_next_price_1(10, 11)  # 得到下一天的期权开盘价格数据
     # append_real_hedging_rate(11, 12)  # 得到真实的对冲比例
     # append_payoff_rate(11, '12_1')  # 得到期权是涨还是跌,此处的涨跌的判断是根据今天的收盘价，再对明天的开盘价来预测的
-    append_payoff_rate_1(11, '12_1', 0.05)  # 得到期权是涨还是跌，此处的涨跌的判断是根据明天早上，得到开盘价之后，再对明天的最高价来预测的
-    check_null_by_id('12_1')
-    retype_cat_columns('12_1', 13)  # 将分类数据设置成int型
+    # append_payoff_rate_1(11, '12_1', 0.05)  # 得到期权是涨还是跌，此处的涨跌的判断是根据明天早上，得到开盘价之后，再对明天的最高价来预测的
+    # check_null_by_id('12_1')
+    retype_cat_columns(11, 13)  # 将分类数据设置成int型
     # get_expand_head()  # 查看填充效果
 
     rename_raw_data(13)
-    split_c_p_save()

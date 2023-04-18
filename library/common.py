@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
+from tqdm import tqdm
 
 # This file contains functions that calculate and inspect the hedging error.
 
@@ -345,6 +345,64 @@ def chunks_np(data, cpu_num):
                 _end = len(data)
             _chunk.append(data[i:_end])
     return _chunk
+
+def reformatt_data(df):
+    df_5 = pd.read_csv(f'/home/liyu/data/hedging-option/date_rate.csv', parse_dates=['date'])  #
+    df_5.sort_values(by=['date'], ascending=False)
+    for f in ['rate_1', 'rate_2', 'rate_3', 'rate_7', 'rate_14', 'rate_21']:
+        prev_data_rate = 0
+        for i in range(df_5.shape[0]):
+            if df_5.loc[i, f] != df_5.loc[i, f]:  # check nan
+                df_5.loc[i, f] = '-'
+            if (df_5.loc[i, f]).strip() == '-' and prev_data_rate != 0:
+                df_5.loc[i, f] = prev_data_rate
+            df_5.loc[i, f] = df_5.loc[i, f] .strip()
+            prev_data_rate = df_5.loc[i, f]
+            if prev_data_rate == '-':
+                print('error')
+    for rate_i in ['rate_1', 'rate_2', 'rate_3', 'rate_7', 'rate_14', 'rate_21']:
+        _rate = df_5[rate_i].to_numpy()
+        percent_to_float = np.vectorize(lambda x: float(x.strip().strip('%')))
+        rate_i_formatted = percent_to_float(_rate)
+        df_5[f'{rate_i}_formatted'] = rate_i_formatted
+    # df = pd.read_csv(f'{DATA_HOME_PATH}/all_raw_data_c.csv', parse_dates=['TradingDate'])
+    df = pd.merge(df, df_5, how='left', left_on='TradingDate', right_on='date')
+    df_m = pd.DataFrame(columns=df.columns)
+    # df['date'] = df['TradingDate']
+    trading_date = df.sort_values(by=['TradingDate'], ascending=False)['TradingDate'].unique()
+    prev_date = None
+    for i in tqdm(trading_date, total=len(trading_date)):
+        d_data = df[df['TradingDate'] == i]
+        if d_data.iloc[0]['date'] != d_data.iloc[0]['date'] and prev_date is not None:
+            prev_d_data = df_m[df_m['TradingDate'] == prev_date].iloc[0]
+            d_data.loc[:, 'date'] = i
+            d_data.loc[:, 'rate_1_formatted'] = prev_d_data['rate_1_formatted']
+            d_data.loc[:, 'rate_2_formatted'] = prev_d_data['rate_2_formatted']
+            d_data.loc[:, 'rate_3_formatted'] = prev_d_data['rate_3_formatted']
+            d_data.loc[:, 'rate_7_formatted'] = prev_d_data['rate_7_formatted']
+            d_data.loc[:, 'rate_14_formatted'] = prev_d_data['rate_14_formatted']
+            d_data.loc[:, 'rate_21_formatted'] = prev_d_data['rate_21_formatted']
+            df_m = df_m.append(d_data)
+        else:
+            df_m = df_m.append(d_data)
+        prev_date = i
+
+    df = df_m
+    df.drop(columns=['date','rate_1', 'rate_2', 'rate_3', 'rate_7', 'rate_14', 'rate_21'], axis=1, inplace=True)
+    # df.to_csv(f'{DATA_HOME_PATH}/all_raw_data_c_formatted.csv', index=False)
+    return df
+
+
+def sub_time(df):
+    mask_2020 = (df['TradingDate'] < pd.Timestamp('2023-01-01')) & (df['TradingDate'] > pd.Timestamp('2019-12-31'))
+    df_year_2020_2022 = df[mask_2020]
+    return df_year_2020_2022
+
+
+def sub_type(df,type_n='C'):
+    print(df.columns.to_numpy())
+    df = df[df['CallOrPut']==type_n]
+    return df
 
 
 def my_log(func):

@@ -9,7 +9,7 @@ import sys
 import numpy as np
 import pandas as pd
 from catboost import CatBoostClassifier, Pool,CatBoostRegressor
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score,mean_squared_error,mean_absolute_error
 
 import util
 
@@ -20,7 +20,7 @@ def init_parser():
     return parser.parse_args()
 
 
-PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20190701-20221124_0.05/h_sh_300/'
+PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
 if __name__ == '__main__':
     opt = init_parser()
     if opt.log_to_file:
@@ -30,28 +30,30 @@ if __name__ == '__main__':
     training_df = pd.read_csv(f'{PREPARE_HOME_PATH}/{NORMAL_TYPE}/training.csv')
     validation_df = pd.read_csv(f'{PREPARE_HOME_PATH}/{NORMAL_TYPE}/validation.csv')
     testing_df = pd.read_csv(f'{PREPARE_HOME_PATH}/{NORMAL_TYPE}/testing.csv')
-    no_need_columns = ['TradingDate', 'NEXT_HIGH']
-    training_df.drop(columns=no_need_columns, axis=1, inplace=True)
-    validation_df.drop(columns=no_need_columns, axis=1, inplace=True)
-    testing_df.drop(columns=no_need_columns, axis=1, inplace=True)
-    cat_features = ['CallOrPut', 'MainSign', 'up_and_down']
-    # cat_features = ['CallOrPut', 'MainSign']
+    less_features=['rate_7_formatted','UnderlyingScrtClose','HistoricalVolatility','ImpliedVolatility','StrikePrice','RemainingTerm','TheoreticalPrice','ClosePrice']
+    cat_features = []
     for i in range(1, 5):
-        cat_features.append(f'CallOrPut_{i}')
-        cat_features.append(f'MainSign_{i}')
-        cat_features.append(f'up_and_down_{i}')
+        less_features.append(f'rate_7_formatted_{i}')
+        less_features.append(f'UnderlyingScrtClose_{i}')
+        less_features.append(f'HistoricalVolatility_{i}')
+        less_features.append(f'StrikePrice_{i}')
+        less_features.append(f'RemainingTerm_{i}')
+        less_features.append(f'ClosePrice_{i}')
+    training_df = training_df[less_features]
+    validation_df = validation_df[less_features]
+    testing_df = testing_df[less_features]
     train_x, train_y, validation_x, validation_y, testing_x, testing_y = util.reformat_data(
         training_df, validation_df, testing_df, not_use_pre_data=False)
 
     params = {
-        'iterations': 200,
-        'depth': 16,
-        'learning_rate': 0.01,
+        'iterations': 2000,
+        'depth': 8,
+        'learning_rate': 0.015,
         # 'loss_function': '',
         # 'verbose': False,
         'task_type': "GPU",
         'logging_level': 'Verbose',
-        'devices': '6',
+        'devices': '7',
         'early_stopping_rounds': 20,
         # 'eval_metric':'Accuracy'
 
@@ -62,15 +64,15 @@ if __name__ == '__main__':
     test_pool = Pool(testing_x, cat_features=cat_features)
 
 
-    model = CatBoostClassifier(**params)
+    model = CatBoostRegressor(**params)
     model.fit(train_pool, eval_set=validation_pool, log_cerr=sys.stderr, log_cout=sys.stdout)
     if opt.log_to_file:
-        util.remove_file_if_exists(f'CatBoostClassifier')
-        model.save_model("CatBoostClassifier")
+        util.remove_file_if_exists(f'CatBoostRegressor')
+        model.save_model("CatBoostRegressor")
 
         from_file = CatBoostClassifier()
 
-        from_file.load_model("CatBoostClassifier")
+        from_file.load_model("CatBoostRegressor")
     else:
         from_file = model
     # make the prediction using the resulting model
@@ -80,20 +82,7 @@ if __name__ == '__main__':
     y_validation_true = np.array(validation_y).reshape(-1, 1)
     y_test_true = np.array(testing_y).reshape(-1, 1)
 
+    util.show_regression_result(y_test_true, y_test_hat)
 
-    util.binary_eval_accuracy(y_validation_true, y_validation_hat)
-    print('==========================')
-    util.binary_eval_accuracy(y_test_true, y_test_hat)
-
-
-"""
-0：不涨 ， 1：涨
-tn, fp, fn, tp 9595 1734 7384 2557
-test中为1的比例 : 0.4673718852844382
-test中为0的比例 : 0.5326281147155618
-查准率 - 预测为1 且实际为1 ，看涨的准确率: 0.5958983919832207
-查全率 - 实际为1，预测为1 : 0.25721758374409015
-F1 = 0.3593310848791456
-总体准确率：0.5713211095439586
-"""
+# rmse : 0.0496487844614115 , mae : 0.038916494542568875
 
