@@ -127,3 +127,4 @@ def show_regression_result(y_test_true, y_test_hat):
     rmse = mean_squared_error(y_test_true, y_test_hat, squared=False)
     mae = mean_absolute_error(y_test_true, y_test_hat)
     print(f'rmse : {rmse} , mae : {mae}')
+    return rmse,mae

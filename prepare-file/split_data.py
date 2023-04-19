@@ -426,6 +426,49 @@ def split_training_validation_test_by_date_2():
     print(f'validation data length is {validation_data.shape}')
     print(f'testing data length is {testing_data.shape}')
 
+@cm.my_log
+def split_training_validation_test_by_date_3():
+    """
+    首先按照 SecurityID 筛选出所有的 option，然后将每个 option 根据 TradingDate 排序
+    然后将位置为0，1，2，3的option放入training set中，4放入testing set中，9，10，11，12 放入training set中，13放入testing set中
+    规则就是每次按照时间顺序取出9个option，0，1，2，3放入training set中，4放入testing set中，后面的丢掉
+    :return:
+    """
+    df = pd.read_csv(f'{PREPARE_HOME_PATH}/all_raw_data.csv', parse_dates=['TradingDate'])
+    option_ids = df['SecurityID'].unique()
+    # train_data_index=pd.DataFrame(columns=['SecurityID','days'])
+    train_list = []
+    temp_list = []
+    less_9_num=0
+    for id in tqdm(option_ids, total=len(option_ids)):
+        opotions = df[df['SecurityID'] == id]
+        o_size = len(opotions)
+        if o_size<9:
+            less_9_num +=1
+            continue
+        for i in np.arange(0,(o_size//9)*9+1,9):
+            train_list.append(opotions[i:i+4])
+            temp_list.append(opotions[i+4:i+5])
+    training_data = pd.concat(train_list, ignore_index=True)
+    temp_set = pd.concat(temp_list, ignore_index=True)
+    print(less_9_num)
+    print(training_data.shape)
+    print(temp_set.shape)
+    temp_set = temp_set.sample(frac=1).reset_index(drop=True)
+    half_length = len(temp_set) // 2
+    validation_data = temp_set.iloc[:half_length, :]
+    testing_data = temp_set.iloc[half_length:, :]
+    remove_file_if_exists(f'{PREPARE_HOME_PATH}/training.csv')
+    remove_file_if_exists(f'{PREPARE_HOME_PATH}/validation.csv')
+    remove_file_if_exists(f'{PREPARE_HOME_PATH}/testing.csv')
+    training_data.to_csv(f'{PREPARE_HOME_PATH}/training.csv', index=False)
+    validation_data.to_csv(f'{PREPARE_HOME_PATH}/validation.csv', index=False)
+    testing_data.to_csv(f'{PREPARE_HOME_PATH}/testing.csv', index=False)
+
+    print(f'training data length is {training_data.shape}')
+    print(f'validation data length is {validation_data.shape}')
+    print(f'testing data length is {testing_data.shape}')
+
 
 @cm.my_log
 def sub_data_by_date(traing_end_date, normal_type):
@@ -558,6 +601,7 @@ if __name__ == '__main__':
     OPTION_SYMBOL = 'ETF50-option'
     PREPARE_HOME_PATH = HOME_PATH + "/" + OPTION_SYMBOL + "/"
     NORMAL_TYPE = 'mean_norm'
+    split_training_validation_test_by_date_3()
 
     # split_training_validation_test_by_date_2()  # 根据时间前后划分，比例为8：1：1
     normalize_data(NORMAL_TYPE)
@@ -565,6 +609,7 @@ if __name__ == '__main__':
 
     OPTION_SYMBOL = 'index-option/h_sh_300'
     PREPARE_HOME_PATH = HOME_PATH + "/" + OPTION_SYMBOL + "/"
+    split_training_validation_test_by_date_3()
     # split_training_validation_test_by_date_2()  # 根据时间前后划分，比例为8：1：1
     normalize_data(NORMAL_TYPE)
     check_null(NORMAL_TYPE)

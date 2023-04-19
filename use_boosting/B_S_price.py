@@ -1,11 +1,8 @@
 import argparse
-import sys
 
-import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_squared_error,mean_absolute_error
 
-import util
+from library import util
 
 
 def init_parser():
@@ -15,6 +12,7 @@ def init_parser():
 
 
 PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
+# PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300/'
 if __name__ == '__main__':
     opt = init_parser()
     if opt.log_to_file:
@@ -31,5 +29,7 @@ if __name__ == '__main__':
 
     y_test_true = testing_df['ClosePrice'].to_numpy()
 
-    util.show_regression_result(y_test_true,y_test_hat)
-# rmse : 0.05977277613982846 , mae : 0.04382507086604558
+    util.show_regression_result(y_test_true, y_test_hat)
+#ETF50 rmse : 0.10284900961823144 , mae : 0.07035413328442769
+
+#h_sh_300 rmse : 0.14099525085075865 , mae : 0.09754094987907007

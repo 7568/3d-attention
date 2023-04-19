@@ -8,8 +8,7 @@ import argparse
 import lightgbm as lgb
 import pandas as pd
 from lightgbm import early_stopping, log_evaluation
-import numpy as np
-import util
+from library import util
 
 
 def init_parser():
@@ -19,7 +18,8 @@ def init_parser():
     return opt
 
 
-PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
+# PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
+PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300/'
 
 if __name__ == '__main__':
     opt = init_parser()
@@ -31,12 +31,12 @@ if __name__ == '__main__':
     training_df = pd.read_csv(f'{PREPARE_HOME_PATH}/{NORMAL_TYPE}/training.csv')
     validation_df = pd.read_csv(f'{PREPARE_HOME_PATH}/{NORMAL_TYPE}/validation.csv')
     testing_df = pd.read_csv(f'{PREPARE_HOME_PATH}/{NORMAL_TYPE}/testing.csv')
-    less_features = ['RisklessRate', 'UnderlyingScrtClose', 'ImpliedVolatility',
+    less_features = ['rate_7_formatted', 'UnderlyingScrtClose', 'ImpliedVolatility',
                      'StrikePrice', 'RemainingTerm','ClosePrice']
 
     cat_features = []
     for i in range(1, 5):
-        less_features.append(f'RisklessRate_{i}')
+        less_features.append(f'rate_7_formatted_{i}')
         less_features.append(f'UnderlyingScrtClose_{i}')
         less_features.append(f'ImpliedVolatility_{i}')
         less_features.append(f'StrikePrice_{i}')
@@ -85,4 +85,18 @@ if __name__ == '__main__':
     util.show_regression_result(validation_y, y_validation_hat)
     util.show_regression_result(testing_y, y_test_hat)
 
-# rmse : 0.04654823075221435 , mae : 0.03417544898479541
+# rmse : 0.06690369309873591 , mae : 0.044401452548709676
+
+"""
+ETF50
+rmse : 0.02393914790521441 , mae : 0.015409243299522535
+rmse : 0.04173552429266133 , mae : 0.025952743145917594
+rmse : 0.04322508458278481 , mae : 0.026519479395672178
+"""
+
+"""
+h_sh_300
+rmse : 0.03830374486264224 , mae : 0.022777631513925988
+rmse : 0.05359733846529638 , mae : 0.029862857466974764
+rmse : 0.049830594751371644 , mae : 0.029150886975433235
+"""

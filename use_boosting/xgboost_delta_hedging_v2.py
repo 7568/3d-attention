@@ -4,15 +4,11 @@ Created by louis at 2022/6/13
 Description:
 """
 import argparse
-import copy
-import math
-import sys
-import os
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-import util
-from sklearn.metrics import mean_squared_error,f1_score,confusion_matrix,accuracy_score
+from library import util
+
 
 def init_parser():
     parser = argparse.ArgumentParser()
@@ -83,5 +79,5 @@ if __name__ == '__main__':
     # Predict on x_test
     y_test_hat = model_from_file.predict(np.ascontiguousarray(testing_x.to_numpy()))
 
-    util.show_regression_result(np.array(testing_y),y_test_hat)
+    util.show_regression_result(np.array(testing_y), y_test_hat)
 # rmse : 0.04264860653382347 , mae : 0.032187609774597406
