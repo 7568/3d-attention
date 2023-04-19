@@ -28,31 +28,18 @@ if __name__ == '__main__':
     # NORMAL_TYPE = 'min_max_norm'
     # NORMAL_TYPE = 'no_norm'
     NORMAL_TYPE = 'mean_norm'
-    training_df = pd.read_csv(f'{PREPARE_HOME_PATH}/{NORMAL_TYPE}/training.csv')
-    validation_df = pd.read_csv(f'{PREPARE_HOME_PATH}/{NORMAL_TYPE}/validation.csv')
-    testing_df = pd.read_csv(f'{PREPARE_HOME_PATH}/{NORMAL_TYPE}/testing.csv')
-    less_features = ['rate_7_formatted', 'UnderlyingScrtClose', 'ImpliedVolatility',
-                     'StrikePrice', 'RemainingTerm','ClosePrice']
-
-    cat_features = []
-    for i in range(1, 5):
-        less_features.append(f'rate_7_formatted_{i}')
-        less_features.append(f'UnderlyingScrtClose_{i}')
-        less_features.append(f'ImpliedVolatility_{i}')
-        less_features.append(f'StrikePrice_{i}')
-        less_features.append(f'RemainingTerm_{i}')
-        # less_features.append(f'TheoreticalPrice_{i}')
-        less_features.append(f'ClosePrice_{i}')
-    training_df = training_df[less_features]
-    validation_df = validation_df[less_features]
-    testing_df = testing_df[less_features]
+    use_much_features=True
+    max_depth = 8
+    if use_much_features:
+        max_depth = 12
+    training_df, validation_df, testing_df,cat_features = util.load_2_d_data(use_much_features,PREPARE_HOME_PATH,NORMAL_TYPE)
     train_x, train_y, validation_x, validation_y, testing_x, testing_y = util.reformat_data(
         training_df, validation_df, testing_df, not_use_pre_data=False)
 
     params = {'objective': 'regression',
               # 'boosting': 'gbdt',
               'learning_rate': 0.01,
-              'max_depth': 8,
+              'max_depth': max_depth,
               # 'num_leaves': 2 ** 8,
               'lambda_l1': 0.5,
               'lambda_l2': 0.5,
@@ -68,7 +55,7 @@ if __name__ == '__main__':
     early_s_n = 20
     train_data = lgb.Dataset(train_x, train_y)
     validation_data = lgb.Dataset(validation_x, validation_y)
-    bst = lgb.train(params, train_data, num_round,valid_sets=[validation_data],
+    bst = lgb.train(params, train_data, num_round,valid_sets=[validation_data],categorical_feature=cat_features,
                     callbacks=[early_stopping(early_s_n), log_evaluation()])
     if opt.log_to_file:
 

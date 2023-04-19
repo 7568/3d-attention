@@ -8,10 +8,11 @@ import sys
 import logging
 
 import lightgbm.basic
+import pandas as pd
 from sklearn.metrics import confusion_matrix, auc, accuracy_score,f1_score
 from sklearn.metrics import mean_squared_error,mean_absolute_error
 import numpy as np
-
+from torch.utils.data import DataLoader
 
 def remove_file_if_exists(path):
     if os.path.exists(path):
@@ -128,3 +129,36 @@ def show_regression_result(y_test_true, y_test_hat):
     mae = mean_absolute_error(y_test_true, y_test_hat)
     print(f'rmse : {rmse} , mae : {mae}')
     return rmse,mae
+
+def load_2_d_data(use_much_features,prepare_home_path,normal_type):
+
+    training_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/training.csv')
+    validation_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/validation.csv')
+    testing_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/testing.csv')
+    less_features = ['rate_7_formatted', 'UnderlyingScrtClose', 'ImpliedVolatility',
+                     'StrikePrice', 'RemainingTerm', 'ClosePrice']
+    cat_features = []
+    if use_much_features:
+        less_features = ['TheoreticalPrice', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho',
+                         'OpenPrice', 'HighPrice', 'LowPrice', 'SettlePrice', 'Change1', 'Change2', 'Volume',
+                         'Position', 'Amount', 'PositionChange', 'MainSign',
+                         'rate_1_formatted', 'rate_2_formatted', 'rate_3_formatted', 'rate_7_formatted',
+                         'rate_14_formatted', 'rate_21_formatted',
+                         'AvgPrice', 'ClosePriceChangeRatio', 'SettlePriceChangeRatio', 'Amplitude', 'LimitUp',
+                         'LimitDown',
+                         'MaintainingMargin', 'ChangeRatio', 'UnderlyingScrtClose', 'ImpliedVolatility',
+                         'StrikePrice', 'RemainingTerm', 'ClosePrice']
+
+        cat_features = ['MainSign']
+        for i in range(1, 5):
+            cat_features.append(f'MainSign_{i}')
+    _features = less_features.copy()
+    for i in range(1, 5):
+        for f in _features:
+            less_features.append(f'{f}_{i}')
+
+    training_df = training_df[less_features]
+    validation_df = validation_df[less_features]
+    testing_df = testing_df[less_features]
+    return training_df,validation_df,testing_df,cat_features
+

@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from data_openml import DataSetCatCon
-from library import util
+from use_lstm import util
 
 torch.manual_seed(100)
 
@@ -54,7 +54,7 @@ def get_scheduler(epochs, optimizer):
     return scheduler
 
 
-def get_test_result(model,validationloader,device):
+def get_test_result(model, validationloader, device):
     model.eval()
     with torch.no_grad():
         y_hats = []
@@ -68,36 +68,18 @@ def get_test_result(model,validationloader,device):
         rmse, mae = util.show_regression_result(y_s, y_hats)
         return rmse, mae
 
-def train_model():
-    NORMAL_TYPE = 'mean_norm'
-    training_df = pd.read_csv(f'{PREPARE_HOME_PATH}/{NORMAL_TYPE}/training.csv')
-    validation_df = pd.read_csv(f'{PREPARE_HOME_PATH}/{NORMAL_TYPE}/validation.csv')
-    testing_df = pd.read_csv(f'{PREPARE_HOME_PATH}/{NORMAL_TYPE}/testing.csv')
-    less_features = ['ClosePrice', 'rate_7_formatted', 'UnderlyingScrtClose', 'ImpliedVolatility', 'StrikePrice',
-                     'RemainingTerm']
-    cat_features = []
-    for i in range(1, 5):
-        less_features.append(f'ClosePrice_{i}')
-        less_features.append(f'rate_7_formatted_{i}')
-        less_features.append(f'UnderlyingScrtClose_{i}')
-        less_features.append(f'ImpliedVolatility_{i}')
-        less_features.append(f'StrikePrice_{i}')
-        less_features.append(f'RemainingTerm_{i}')
-    training_df = training_df[less_features]
-    validation_df = validation_df[less_features]
-    testing_df = testing_df[less_features]
+
+def train_model(use_much_features):
     device = torch.device(f"cuda:6")
     # device = torch.device(f"cpu")
+    NORMAL_TYPE = 'mean_norm'
     print(f"Device is {device}.")
-    train_ds = DataSetCatCon(training_df)
-    trainloader = DataLoader(train_ds, batch_size=opt.batchsize, shuffle=True, num_workers=4)
-    validation_ds = DataSetCatCon(validation_df)
-    validationloader = DataLoader(validation_ds, batch_size=opt.batchsize, shuffle=True, num_workers=4)
-    testing_ds = DataSetCatCon(testing_df)
-    testingloader = DataLoader(testing_ds, batch_size=opt.batchsize, shuffle=True, num_workers=4)
+    trainloader, validationloader, testingloader, feature_num = util.load_sequence_data(use_much_features,
+                                                                                        PREPARE_HOME_PATH, NORMAL_TYPE,
+                                                                                        opt)
     test_periods = 1
-    model = LSTM(input_size=6, hidden_size=opt.hidden_size, output_size=test_periods, num_layers=opt.num_layers).to(
-        device)
+    model = LSTM(input_size=feature_num, hidden_size=opt.hidden_size, output_size=test_periods,
+                 num_layers=opt.num_layers).to(device)
     criterion = nn.MSELoss().to(device)
     optimizer = optim.Adam(model.parameters(), lr=opt.lr)
     scheduler = get_scheduler(opt.epochs, optimizer)
@@ -127,7 +109,7 @@ def train_model():
         if epoch % 1 == 0:
             print(f'epoch: {epoch:4} loss:{loss.item():10.9f} , lr={optimizer.param_groups[0]["lr"]}')
 
-        rmse,mae = get_test_result(model,validationloader,device)
+        rmse, mae = get_test_result(model, validationloader, device)
 
         print(f'validation rmse : {rmse} , mae : {mae}')
         no_change_times += 1
@@ -158,5 +140,17 @@ if __name__ == '__main__':
     opt = init_parser()
     if opt.log_to_file:
         logger = util.init_log('lstm')
+    use_much_features = True
+    train_model(use_much_features)
 
-    train_model()
+"""
+h_sh_300
+validation rmse : 0.04811541363048127 , mae : 0.0251478114582285
+testing rmse : 0.04673098007204823 , mae : 0.02567159558187799
+"""
+
+"""
+ETF50
+validation rmse : 0.026531293950002928 , mae : 0.017034916364539125
+testing rmse : 0.026283616057762242 , mae : 0.01760636860360867
+"""

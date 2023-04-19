@@ -395,7 +395,7 @@ def combine_all_data(ord_2):
 
     df_1 = df_1[['SecurityID', 'TradingDate', 'CallOrPut', 'StrikePrice', 'ClosePrice', 'UnderlyingScrtClose',
                  'RemainingTerm', 'RisklessRate', 'HistoricalVolatility', 'ImpliedVolatility', 'TheoreticalPrice',
-                 ]]
+                 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho' ]]
 
     df_2 = df_2[['SecurityID', 'TradingDate', 'TradingDayStatusID', 'Filling', 'OpenPrice', 'HighPrice', 'LowPrice',
                  'SettlePrice', 'Change1', 'Change2', 'Volume', 'Position', 'Amount']]
@@ -666,6 +666,7 @@ def append_before4_days_data(ord_1, ord_2):
                        'ImpliedVolatility', 'rate_1_formatted', 'rate_2_formatted', 'rate_3_formatted',
                        'TheoreticalPrice', 'MainSign', 'rate_7_formatted', 'rate_14_formatted',
                        'OpenPrice', 'PositionChange', 'RemainingTerm', 'rate_21_formatted',
+                       'Delta', 'Gamma', 'Vega', 'Theta', 'Rho',
                        'HighPrice', 'LowPrice', 'SettlePrice', 'Change1', 'Change2', 'Volume', 'Position', 'Amount',
                        'AvgPrice', 'ClosePriceChangeRatio', 'SettlePriceChangeRatio', 'Amplitude', 'LimitUp',
                        'LimitDown', 'MaintainingMargin', 'ChangeRatio', 'CallOrPut', 'NEXT_OPEN', 'NEXT_HIGH']
@@ -972,15 +973,15 @@ file_name_1 = 'SO_PricingParameter'
 file_name_2 = 'SO_QuotationBas'
 file_name_3 = 'SO_QuotationDer'
 
+# if __name__ == '__main__':
+#     append_before4_days_data(10, 11)  # 将前4天的数据追加到当天，不够4天的用0填充
+#
+#     retype_cat_columns(11, 13)  # 将分类数据设置成int型
+#     # get_expand_head()  # 查看填充效果
+#
+#     rename_raw_data(13)
+
 if __name__ == '__main__':
-    append_before4_days_data(10, 11)  # 将前4天的数据追加到当天，不够4天的用0填充
-
-    retype_cat_columns(11, 13)  # 将分类数据设置成int型
-    # get_expand_head()  # 查看填充效果
-
-    rename_raw_data(13)
-
-if __name__ == '__main1__':
     combine_all_data(1)
     remove_filling_not0_data(1, 4)  # 删除原始表中节假日填充的数据
     remove_real_trade_days_less28(4, 5)  # 将合约交易天数小于28天的删除
