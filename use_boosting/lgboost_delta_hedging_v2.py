@@ -18,8 +18,8 @@ def init_parser():
     return opt
 
 
-# PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
-PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300/'
+PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
+# PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300/'
 
 if __name__ == '__main__':
     opt = init_parser()
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     # NORMAL_TYPE = 'min_max_norm'
     # NORMAL_TYPE = 'no_norm'
     NORMAL_TYPE = 'mean_norm'
-    use_much_features=True
+    use_much_features=False
     max_depth = 8
     if use_much_features:
         max_depth = 12
@@ -76,14 +76,28 @@ if __name__ == '__main__':
 
 """
 ETF50
-rmse : 0.02393914790521441 , mae : 0.015409243299522535
-rmse : 0.04173552429266133 , mae : 0.025952743145917594
-rmse : 0.04322508458278481 , mae : 0.026519479395672178
+
+use_much_features=False
+rmse : 0.027641644780524926 , mae : 0.01796221438979232
+rmse : 0.04743250130208135 , mae : 0.02912669047821163
+rmse : 0.04534953518031237 , mae : 0.028514477419322594
+
+use_much_features=True
+rmse : 0.01736346811536749 , mae : 0.008533473793200878
+rmse : 0.01877766552244604 , mae : 0.009373629487655265
+rmse : 0.017370084145710004 , mae : 0.008981620007181564
 """
 
 """
 h_sh_300
-rmse : 0.03830374486264224 , mae : 0.022777631513925988
-rmse : 0.05359733846529638 , mae : 0.029862857466974764
-rmse : 0.049830594751371644 , mae : 0.029150886975433235
+
+use_much_features=False
+rmse : 0.04006593908711819 , mae : 0.02396901578588577
+rmse : 0.050793993961330774 , mae : 0.02995080132211512
+rmse : 0.05587283074117626 , mae : 0.03170890680447272
+
+use_much_features=True
+rmse : 0.0108516674012833 , mae : 0.006366965456758745
+rmse : 0.019985259823927952 , mae : 0.008049306607088897
+rmse : 0.01894083938037142 , mae : 0.008088809522611892
 """

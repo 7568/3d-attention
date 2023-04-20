@@ -26,7 +26,6 @@ class SAINT(nn.Module):
             num_continuous,
             dim,
             depth,
-            heads,
             dim_head=16,
             dim_out=1,
             mlp_hidden_mults=(4, 2),
@@ -87,7 +86,6 @@ class SAINT(nn.Module):
                 num_tokens=self.total_tokens,
                 dim=dim,
                 depth=depth,
-                heads=heads,
                 dim_head=dim_head,
                 attn_dropout=attn_dropout,
                 ff_dropout=ff_dropout
@@ -98,7 +96,6 @@ class SAINT(nn.Module):
                 dim=dim,
                 nfeats=nfeats,
                 depth=depth,
-                heads=heads,
                 dim_head=dim_head,
                 attn_dropout=attn_dropout,
                 ff_dropout=ff_dropout,

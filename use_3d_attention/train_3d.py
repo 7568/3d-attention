@@ -239,3 +239,17 @@ if __name__ == "__main__":
         if arguments.gpu_index > 7:
             arguments.gpu_index %= 8
         main_once(arguments)
+
+
+"""
+h_sh_300
+use_much_features: false
+mse : 0.007881278172135353 , rmse : 0.08877656608819962 , mae : 0.06949970871210098
+mse in validation : 0.007881278172135353
+mse : 0.0053901574574410915 , rmse : 0.07341769337654114 , mae : 0.04164360091090202
+mse in testing : 0.0053901574574410915
+
+mse : 0.004092297051101923 , rmse : 0.06397106498479843 , mae : 0.03928695619106293
+mse in testing : 0.004092297051101923
+
+"""

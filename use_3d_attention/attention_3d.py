@@ -36,8 +36,8 @@ class ATTENTION_3D(BaseModelTorch):
             cat_dims = np.array([])
 
         # Decreasing some hyperparameter to cope with memory issues
-        dim = self.params["dim"] if args.num_features < 50 else 8
-        self.batch_size = self.args.batch_size if args.num_features < 50 else 64
+        # dim = self.params["dim"] if args.num_features < 50 else 8
+        # self.batch_size = self.args.batch_size if args.num_features < 50 else 64
 
 
         # print("Using dim %d and batch size %d" % (dim, self.batch_size))
@@ -47,10 +47,9 @@ class ATTENTION_3D(BaseModelTorch):
         self.model = SAINTModel(
             categories=tuple(cat_dims),
             num_continuous=len(num_idx),
-            dim=dim,
+            dim=self.params["dim"],
             dim_out=2,
-            depth=self.params["depth"],  # 6
-            heads=self.params["heads"],  # 8
+            depth=self.params["depth"],  # 6 # 8
             attn_dropout=self.params["dropout"],  # 0.1
             ff_dropout=self.params["dropout"],  # 0.1
             mlp_hidden_mults=(4, 2),
@@ -92,14 +91,14 @@ class ATTENTION_3D(BaseModelTorch):
         trainloader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4)
 
         min_val_loss_idx = 0
-        max_f1 = 0
+        min_mse = float('inf')
         loss_history = []
         val_loss_history = []
 
         for epoch in range(self.args.epochs):
             self.model.train()
             loss_history = []
-            mses=[]
+            rmses=[]
             for i, data in tqdm(enumerate(trainloader), total=len(trainloader)):
 
                 x_categ, x_cont, y_gts = data
@@ -110,7 +109,7 @@ class ATTENTION_3D(BaseModelTorch):
                 x_categ, x_cont = x_categ.to(self.device), x_cont.to(self.device)
                 _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont,self.model)
                 reps = self.model.transformer(x_cont_enc,x_categ_enc)
-                y_reps = reps[:, -1, :]
+                y_reps = reps[:, 0, :]
                 y_outs = self.model.mlpfory(y_reps)
 
                 # if self.args.objective == "binary":
@@ -132,19 +131,19 @@ class ATTENTION_3D(BaseModelTorch):
                 optimizer.step()
 
                 loss_history.append(loss.item())
-                mse = mean_squared_error(y_gts.detach().cpu(), y_outs.detach().cpu())
-                mses.append(mse)
+                rmse = mean_squared_error(y_gts.detach().cpu(), y_outs.detach().cpu(), squared=False)
+                rmses.append(rmse)
                 # print("Loss", loss.item())
 
-            print(f'epoche " {epoch} , average loss : {np.array(loss_history).mean()} , average mses : {np.array(mses).mean()}')
+            print(f'epoche " {epoch} , average loss : {np.array(loss_history).mean()} , average rmses : {np.array(rmses).mean()}')
 
             # train_mse = self.predict_helper(X_train['data'],training_trading_dates,y_train['data'],tag='training',need_reload_model=False)
             # print(f'train mse : {train_mse}')
             mse = self.predict_helper(X_val,validation_trading_dates,y_val,tag='validation',need_reload_model=False)
             print(f'validation mse : {mse}')
 
-            if mse > max_f1:
-                max_f1 = mse
+            if mse < min_mse:
+                min_mse = mse
                 min_val_loss_idx = epoch
 
                 # Save the currently best model
@@ -346,7 +345,7 @@ class ATTENTION_3D(BaseModelTorch):
                 x_categ, x_cont = x_categ.to(self.device), x_cont.to(self.device)
                 _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, self.model)
                 reps = self.model.transformer(x_cont_enc, x_categ_enc)
-                y_reps = reps[:, -1, :]
+                y_reps = reps[:, 0, :]
                 y_outs = self.model.mlpfory(y_reps)
 
                 y_outs = y_outs.detach().cpu()

@@ -100,7 +100,7 @@ class Attention(nn.Module):
 
 
 class RowColTransformer(nn.Module):
-    def __init__(self, num_tokens, dim, nfeats, depth, heads, dim_head, attn_dropout, ff_dropout, style='col',
+    def __init__(self, num_tokens, dim, nfeats, depth, dim_head, attn_dropout, ff_dropout, style='col',
                  device=None, each_day_feature_num=0, each_day_cat_feature_num=0, sequence_length=5):
         super().__init__()
         self.device = device
@@ -108,12 +108,12 @@ class RowColTransformer(nn.Module):
         self.layers = nn.ModuleList([])
         self.layers_mirror = nn.ModuleList([])
         self.mask_embed = nn.Embedding(nfeats, dim)
-        max_length = 10
+        # max_length = 10
         self.each_day_feature_num = each_day_feature_num
         self.each_day_cat_feature_num = each_day_cat_feature_num
         self.sequence_length = sequence_length
         self.encode_length = dim
-        self.pos_embedding = nn.Embedding(max_length, int(dim * nfeats / self.sequence_length))
+        # self.pos_embedding = nn.Embedding(max_length, int(dim * nfeats / self.sequence_length))
         self.scale = torch.sqrt(torch.FloatTensor([dim * nfeats / self.sequence_length]).to(device))
         self.style = style
         for _ in range(depth):
@@ -123,14 +123,14 @@ class RowColTransformer(nn.Module):
                     PreNorm(dim, Residual(FeedForward(dim, dropout=ff_dropout))),
                     PreNorm(dim * nfeats // self.sequence_length,
                             Residual(
-                                Attention(dim * nfeats // self.sequence_length, heads=nfeats // self.sequence_length,
+                                Attention(dim * nfeats // self.sequence_length, heads=nfeats,
                                           dropout=attn_dropout))),
                     PreNorm(dim * nfeats // self.sequence_length,
                             Residual(FeedForward(dim * nfeats // self.sequence_length, dropout=ff_dropout))),
 
                     PreNorm(int(dim * nfeats / self.sequence_length),
                             Residual(Attention(int(dim * nfeats / self.sequence_length),
-                                               heads=int(nfeats / self.sequence_length), dropout=attn_dropout))),
+                                               heads=nfeats, dropout=attn_dropout))),
                     PreNorm(int(dim * nfeats / self.sequence_length),
                             Residual(FeedForward(int(dim * nfeats / self.sequence_length), dropout=ff_dropout))),
                 ]))
@@ -139,7 +139,7 @@ class RowColTransformer(nn.Module):
                     PreNorm(dim, Residual(FeedForward(dim, dropout=ff_dropout))),
                     PreNorm(dim * nfeats // self.sequence_length,
                             Residual(
-                                Attention(dim * nfeats // self.sequence_length, heads=nfeats // self.sequence_length,
+                                Attention(dim * nfeats // self.sequence_length, heads=nfeats,
                                           dropout=attn_dropout))),
                     PreNorm(dim * nfeats // self.sequence_length,
                             Residual(FeedForward(dim * nfeats // self.sequence_length, dropout=ff_dropout)))
@@ -149,7 +149,7 @@ class RowColTransformer(nn.Module):
             else:
                 self.layers.append(nn.ModuleList([
                     PreNorm(dim * nfeats,
-                            Residual(Attention(dim * nfeats, heads=heads, dim_head=64, dropout=attn_dropout))),
+                            Residual(Attention(dim * nfeats, heads=1, dim_head=64, dropout=attn_dropout))),
                     PreNorm(dim * nfeats, Residual(FeedForward(dim * nfeats, dropout=ff_dropout))),
                 ]))
 
@@ -160,6 +160,7 @@ class RowColTransformer(nn.Module):
             else:
                 for param in module.parameters():
                     param.requise_grad = False
+                    param.requires_grad = False
 
     def copy_datas(self, module_list_source, module_list_target):
         if isinstance(module_list_source, nn.ModuleList):
@@ -218,8 +219,11 @@ class RowColTransformer(nn.Module):
 
             x3 = rearrange(x2, 'b (d_1 d_2) d -> b d_1 d_2 d', d_1=self.sequence_length)
             x3 = rearrange(x3, 'b d_1 d_2 d -> b d_1 (d_2 d)')
-            pos = torch.arange(self.sequence_length, 0, -1).unsqueeze(0).repeat(batch, 1).to(self.device)
-            x3 = x3 * self.scale + self.pos_embedding(pos)
+            pos = torch.sin(torch.arange(self.sequence_length, 0, -1).unsqueeze(1).repeat(1, n//self.sequence_length*self.encode_length) * 0.1).to(self.device)
+            pos = pos.unsqueeze(0).repeat(batch,1,1)
+            # pos = torch.arange(self.sequence_length, 0, -1).unsqueeze(0).repeat(batch, 1).to(self.device)
+            # x3 = x3 * self.scale + self.pos_embedding(pos)
+            x3 = x3 * self.scale + pos
             x3 = attn3(x3)
             x3 = ff3(x3)
             x3 = rearrange(x3, 'b d_1 (d_2 d) -> b d_1 d_2 d', d=self.encode_length)

@@ -19,15 +19,15 @@ def reformat_data(training_df, validation_df, testing_df, not_use_pre_data=False
     target_fea = 'ClosePrice'
     train_x = training_df.copy()
     print(training_df.columns)
-    train_x[target_fea]=-1
+    train_x[target_fea]=1
     train_y = training_df[target_fea]
 
     validation_x = validation_df.copy()
-    validation_x[target_fea]=-1
+    validation_x[target_fea]=1
     validation_y = validation_df[target_fea]
 
     testing_x = testing_df.copy()
-    testing_x[target_fea]=-1
+    testing_x[target_fea]=1
     testing_y = testing_df[target_fea]
 
     # latest_x = latest_df.copy()
