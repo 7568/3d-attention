@@ -1,0 +1,18 @@
+parameters: {
+  H_sh_300_options: {
+    3d-attention: {
+      dim: 38,
+      depth: 4,
+      heads: 5,
+      dropout: 0.001
+    }
+  },
+  etf_50_options: {
+    3d-attention: {
+      dim: 38,
+      depth: 4,
+      heads: 5,
+      dropout: 0.001
+    }
+  }
+}

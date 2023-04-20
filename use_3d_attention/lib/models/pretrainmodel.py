@@ -1,4 +1,4 @@
-from .model_v3_blation_test import *
+from .model_v3 import *
 
 
 class sep_MLP(nn.Module):
@@ -38,7 +38,8 @@ class SAINT(nn.Module):
             scalingfactor=10,
             attentiontype='col',
             final_mlp_style='common',
-            y_dim=2,device=None
+            y_dim=2,device=None,
+            each_day_feature_num=0, each_day_cat_feature_num=0
     ):
         super().__init__()
         assert all(map(lambda n: n > 0, categories)), 'number of each category must be positive'
@@ -102,7 +103,9 @@ class SAINT(nn.Module):
                 attn_dropout=attn_dropout,
                 ff_dropout=ff_dropout,
                 style=attentiontype,
-                device=device
+                device=device,
+                each_day_feature_num=each_day_feature_num,
+                each_day_cat_feature_num=each_day_cat_feature_num
             )
 
         l = input_size // 8

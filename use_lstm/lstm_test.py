@@ -85,7 +85,7 @@ def train_model(use_much_features):
     scheduler = get_scheduler(opt.epochs, optimizer)
     loss_list = []
     lr_list = []
-    min_validation_loss = 99999
+    min_validation_loss = float("inf")
     no_change_times = 0
     for epoch in range(opt.epochs + 1):
         model.train()

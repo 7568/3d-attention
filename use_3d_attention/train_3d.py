@@ -123,7 +123,7 @@ def training_validation_testing(model, X, y, training_trading_dates, validation_
         save_loss_to_file(args, val_loss_history, "val_loss")
 
     # Compute scores on the output
-    sc.eval(curr_model.y_test, curr_model.predictions, curr_model.prediction_probabilities)
+    sc.eval(curr_model.testing_y, curr_model.predictions, curr_model.prediction_probabilities)
 
     print(sc.get_results())
 
@@ -197,6 +197,9 @@ def main(args):
 
 def main_once(args):
     print("Train model with given hyperparameters")
+
+    args.PREPARE_HOME_PATH = PREPARE_HOME_PATH
+    args.NORMAL_TYPE = NORMAL_TYPE
     X, y, training_trading_dates, validation_trading_dates, testing_trading_dates = load_data(args)
 
     model_name = ATTENTION_3D
@@ -212,7 +215,10 @@ def main_once(args):
     print(sc.get_results())
     print(time)
 
-
+# PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
+PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300/'
+NORMAL_TYPE = 'mean_norm'
+use_much_features=False
 # python train.py --config config/h_sh_300_options.yml  --model_name LightGBM --n_trials 2 --epochs 30 --log_to_file &
 if __name__ == "__main__":
     parser = get_parser()

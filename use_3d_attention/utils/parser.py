@@ -8,7 +8,7 @@ def get_parser():
                                            formatter_class=configargparse.ArgumentDefaultsHelpFormatter)
     parser.add('--log_to_file', action='store_true')
     parser.add('--log_to_file_name', type=str, default="test", help="Direction of optimization.")
-    parser.add('--model_name', required=True, help="Name of the model that should be trained")
+    parser.add('--model_name',  type=str, default="3d-attention", help="Name of the model that should be trained")
     parser.add('-config', '--config', required=False, is_config_file_arg=True, help='config file path',
                default="config/h_sh_300_options_3d_attention.yml")  # kddcup99 covertype california_housing adult higgs h_sh_300_options
 
@@ -18,6 +18,9 @@ def get_parser():
                help="Set the type of the task")
 
     parser.add('--use_gpu', action="store_true", help="Set to true if GPU is available")
+    parser.add('--use_much_features', action="store_true", help="use_much_features")
+    parser.add('--prepare_home_path', type=str, default="/data",help="prepare_home_path")
+    parser.add('--normal_type', type=str, default="mean_norm",help="normal_type")
     parser.add('--gpu_ids', type=int, action="append", help="IDs of the GPUs used when data_parallel is true")
     parser.add('--gpu_index', default=0, type=int, help="ID of the GPU used when use_gpu is true")
     parser.add('--data_parallel', action="store_true", help="Distribute the training over multiple GPUs")

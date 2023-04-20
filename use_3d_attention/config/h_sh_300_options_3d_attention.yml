@@ -1,0 +1,53 @@
+# General parameters
+dataset: H_sh_300_options
+objective: regression  # Don't change binary_f1 binary
+# 如果是 binary或者 regression 那么num_classes为1
+
+# prepare_home_path: '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
+prepare_home_path: '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300/'
+normal_type: 'mean_norm'
+use_much_features: false
+
+pretrain: False
+pretrain_epochs: 17
+
+use_pretrain_data: False
+
+# optimize_hyperparameters: True
+use_gpu: True
+# use one GPU parameters
+gpu_index: 0
+# use GPU data_parallel parameters
+gpu_ids: [ 0, 1 ]
+
+
+data_parallel: False
+
+# Cross validation parameters
+num_splits: 5
+shuffle: True
+seed: 221 # Don't change
+
+# Preprocessing parameters
+scale: False
+target_encode: False
+one_hot_encode: False
+
+# Training parameters
+batch_size: 128
+val_batch_size: 256
+early_stopping_rounds: 10
+epochs: 500
+logging_period: 20
+
+
+
+# About the data
+num_classes: 1  # for classification
+#num_features: 180
+#cat_idx: [ 35, 71, 107, 143, 179]
+
+num_features: 30
+cat_idx: [ ]
+# cat_dims: will be automatically set.
+#cat_dims: [ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ]

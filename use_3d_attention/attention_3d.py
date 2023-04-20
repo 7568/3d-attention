@@ -6,16 +6,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
-
 import numpy as np
 from torch import einsum
 from einops import rearrange
-from sklearn.metrics import f1_score, confusion_matrix
+from sklearn.metrics import mean_squared_error,mean_absolute_error
 from lib.models.pretrainmodel import SAINT as SAINTModel
 from lib.data_openml import DataSetCatCon
 from lib.augmentations import embed_data_mask, mixup_data, add_noise
 from tqdm import tqdm
 from torchmetrics.classification import BinaryF1Score
+from utils import scorer
 
 '''
     batch内数据为一天内的数据
@@ -33,16 +33,17 @@ class ATTENTION_3D(BaseModelTorch):
             cat_dims = np.array(args.cat_dims).astype(int)
         else:
             num_idx = list(range(args.num_features))
-            cat_dims = np.array([1])
+            cat_dims = np.array([])
 
         # Decreasing some hyperparameter to cope with memory issues
         dim = self.params["dim"] if args.num_features < 50 else 8
         self.batch_size = self.args.batch_size if args.num_features < 50 else 64
 
-        self.blation_test_id = args.blation_test_id
-        print(f'blation_test_id : {self.blation_test_id}')
+
         # print("Using dim %d and batch size %d" % (dim, self.batch_size))
         self.cat_dims = cat_dims
+        if args.cat_idx is None:
+            args.cat_idx=[]
         self.model = SAINTModel(
             categories=tuple(cat_dims),
             num_continuous=len(num_idx),
@@ -56,7 +57,8 @@ class ATTENTION_3D(BaseModelTorch):
             cont_embeddings="MLP",
             attentiontype="colrow",
             final_mlp_style="sep",
-            y_dim=args.num_classes, device=self.device
+            y_dim=args.num_classes, device=self.device,
+            each_day_cat_feature_num=len(args.cat_idx)//5,each_day_feature_num=args.num_features//5
         )
 
         if self.args.data_parallel:
@@ -81,55 +83,34 @@ class ATTENTION_3D(BaseModelTorch):
         optimizer = optim.AdamW(self.model.parameters(), lr=self.args.learning_rate)
 
         # SAINT wants it like this...
-        X = {'data': X, 'mask': np.ones_like(X)}
-        y = {'data': y.reshape(-1, 1)}
+        X_train = {'data': X}
+        y_train = {'data': y.reshape(-1, 1)}
         # X_val = {'data': X_val, 'mask': np.ones_like(X_val)}
         # y_val = {'data': y_val.reshape(-1, 1)}
 
-        train_ds = DataSetCatCon(X, y, self.args.cat_idx, self.args.objective, trading_dates=training_trading_dates)
-        trainloader = DataLoader(train_ds, batch_size=1, num_workers=4)
+        train_ds = DataSetCatCon(X_train, y_train, self.args.cat_idx, self.args.objective, trading_dates=training_trading_dates)
+        trainloader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4)
 
-        # val_ds = DataSetCatCon(X_val, y_val, self.args.cat_idx, self.args.objective,
-        #                        trading_dates=validation_trading_dates)
-        # valloader = DataLoader(val_ds, batch_size=1, num_workers=1)
-
-        min_val_loss = float("inf")
         min_val_loss_idx = 0
         max_f1 = 0
         loss_history = []
         val_loss_history = []
 
         for epoch in range(self.args.epochs):
-            loss_history = []
             self.model.train()
-
+            loss_history = []
+            mses=[]
             for i, data in tqdm(enumerate(trainloader), total=len(trainloader)):
 
-                # x_categ is the the categorical data,
-                # x_cont has continuous data,
-                # y_gts has ground truth ys.
-                # cat_mask is an array of ones same shape as x_categ and an additional column(corresponding to CLS
-                # token) set to 0s.
-                # con_mask is an array of ones same shape as x_cont.
-                x_categ, x_cont, y_gts, cat_mask, con_mask = data
+                x_categ, x_cont, y_gts = data
                 x_categ = x_categ.squeeze(0)
                 x_cont = x_cont.squeeze(0)
                 y_gts = y_gts.squeeze(0)
-                cat_mask = cat_mask.squeeze(0)
-                con_mask = con_mask.squeeze(0)
 
                 x_categ, x_cont = x_categ.to(self.device), x_cont.to(self.device)
-                cat_mask, con_mask = cat_mask.to(self.device), con_mask.to(self.device)
-
-                # We are converting the data to embeddings in the next step
-                _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, cat_mask, con_mask, self.model)
-
-                reps = self.model.transformer(x_categ_enc, x_cont_enc,self.blation_test_id)
-
-                # select only the representations corresponding to CLS token
-                # and apply mlp on it in the next step to get the predictions.
+                _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont,self.model)
+                reps = self.model.transformer(x_cont_enc,x_categ_enc)
                 y_reps = reps[:, -1, :]
-
                 y_outs = self.model.mlpfory(y_reps)
 
                 # if self.args.objective == "binary":
@@ -146,33 +127,28 @@ class ATTENTION_3D(BaseModelTorch):
                 else:
                     y_gts = y_gts.to(self.device).float()
                 loss = criterion(y_outs, y_gts)
-                # loss = 0.01 * criterion(soft_max_y_outs, y_gts) + 0.1 * (1 - f1_score(soft_max_y_outs, y_gts))
-                # loss = criterion(soft_max_y_outs, y_gts) * (1.5 - torch_f1_score(soft_max_y_outs, y_gts))
-                # loss = criterion(soft_max_y_outs, y_gts) *(1 - self._f1_score(y_gts.detach().cpu(), soft_max_y_outs.detach().cpu()))
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
                 loss_history.append(loss.item())
-
+                mse = mean_squared_error(y_gts.detach().cpu(), y_outs.detach().cpu())
+                mses.append(mse)
                 # print("Loss", loss.item())
 
-            print(f'epoche " {epoch} , average loss : {np.array(loss_history).mean()}')
+            print(f'epoche " {epoch} , average loss : {np.array(loss_history).mean()} , average mses : {np.array(mses).mean()}')
 
-            f1 = self.predict_helper(X_val,validation_trading_dates,y_val,tag='validation',need_reload_model=False)
-            # if np.array(loss_history).mean() < min_val_loss:
-            #     min_val_loss = np.array(loss_history).mean()
-            #     min_val_loss_idx = epoch
-            #
-            #     # Save the currently best model
-            #     self.save_model(filename_extension=f"{self.args.model_name}_{self.args.blation_test_id}_{self.args.learning_rate}_best", directory="tmp")
+            # train_mse = self.predict_helper(X_train['data'],training_trading_dates,y_train['data'],tag='training',need_reload_model=False)
+            # print(f'train mse : {train_mse}')
+            mse = self.predict_helper(X_val,validation_trading_dates,y_val,tag='validation',need_reload_model=False)
+            print(f'validation mse : {mse}')
 
-            if f1 > max_f1:
-                max_f1 = f1
+            if mse > max_f1:
+                max_f1 = mse
                 min_val_loss_idx = epoch
 
                 # Save the currently best model
-                self.save_model(filename_extension=f"{self.args.model_name}_{self.args.blation_test_id}_{self.args.learning_rate}_best", directory="tmp")
+                self.save_model(filename_extension=f"{self.args.model_name}_{self.args.learning_rate}_best", directory="tmp")
 
             if min_val_loss_idx + self.args.early_stopping_rounds < epoch:
                 print("Validation loss has not improved for %d steps!" % self.args.early_stopping_rounds)
@@ -220,27 +196,14 @@ class ATTENTION_3D(BaseModelTorch):
                 # cat_mask is an array of ones same shape as x_categ and an additional column(corresponding to CLS
                 # token) set to 0s.
                 # con_mask is an array of ones same shape as x_cont.
-                x_categ, x_cont, y_gts, cat_mask, con_mask = data
+                x_categ, x_cont, y_gts= data
                 x_categ = x_categ.squeeze(0)
                 x_cont = x_cont.squeeze(0)
                 y_gts = y_gts.squeeze(0)
-                cat_mask = cat_mask.squeeze(0)
-                con_mask = con_mask.squeeze(0)
 
                 x_categ, x_cont = x_categ.to(self.device), x_cont.to(self.device)
-                cat_mask, con_mask = cat_mask.to(self.device), con_mask.to(self.device)
-                if 'cutmix' in self.args.pt_aug:
-
-                    x_categ_corr, x_cont_corr = add_noise(x_categ, x_cont, noise_params=pt_aug_dict)
-                    _, x_categ_enc_2, x_cont_enc_2 = embed_data_mask(x_categ_corr, x_cont_corr, cat_mask, con_mask,
-                                                                     self.model)
-                else:
-                    _, x_categ_enc_2, x_cont_enc_2 = embed_data_mask(x_categ, x_cont, cat_mask, con_mask, self.model)
-
-                if 'mixup' in self.args.pt_aug:
-                    x_categ_enc_2, x_cont_enc_2 = mixup_data(x_categ_enc_2, x_cont_enc_2, lam=self.args.mixup_lam)
-                # We are converting the data to embeddings in the next step
-                _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, cat_mask, con_mask, self.model)
+                _, x_categ_enc_2, x_cont_enc_2 = embed_data_mask(x_categ, x_cont, self.model)
+                _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont,  self.model)
 
                 loss = 0
                 if 'contrastive' in self.args.pt_tasks:
@@ -263,8 +226,8 @@ class ATTENTION_3D(BaseModelTorch):
                     loss_2 = criterion(logits_per_aug2, targets)
                     loss = self.args.lam0 * (loss_1 + loss_2) / 2
                 elif 'contrastive_sim' in self.args.pt_tasks:
-                    aug_features_1 = self.model.transformer(x_categ_enc, x_cont_enc)
-                    aug_features_2 = self.model.transformer(x_categ_enc_2, x_cont_enc_2)
+                    aug_features_1 = self.model.transformer(x_cont_enc,x_categ_enc)
+                    aug_features_2 = self.model.transformer(x_cont_enc_2,x_categ_enc_2)
                     aug_features_1 = (aug_features_1 / aug_features_1.norm(dim=-1, keepdim=True)).flatten(1, 2)
                     aug_features_2 = (aug_features_2 / aug_features_2.norm(dim=-1, keepdim=True)).flatten(1, 2)
                     aug_features_1 = self.model.pt_mlp(aug_features_1)
@@ -272,7 +235,7 @@ class ATTENTION_3D(BaseModelTorch):
                     c1 = aug_features_1 @ aug_features_2.t()
                     loss += self.args.lam1 * torch.diagonal(-1 * c1).add_(1).pow_(2).sum()
                 if 'denoising' in self.args.pt_tasks:
-                    cat_outs, con_outs = self.model(x_categ_enc_2, x_cont_enc_2)
+                    cat_outs, con_outs = self.model( x_cont_enc_2,x_categ_enc_2)
                     con_outs = torch.cat(con_outs, dim=1)
                     _x_cont = x_cont[:, 0:x_cont.shape[1] // 5]
                     l2 = criterion2(con_outs, _x_cont)
@@ -355,84 +318,67 @@ class ATTENTION_3D(BaseModelTorch):
     #
     #     return _y, _pred_y
 
-    def predict_helper(self, X, _trading_dates=None,y = None,tag='testing',need_reload_model=True):
-        X = {'data': X, 'mask': np.ones_like(X)}
-        if y is None:
-            y = {'data': self.testing_y}
+    def predict_helper(self, data_X, _trading_dates=None,data_y = None,tag='testing',need_reload_model=True):
+        _data_X = {'data': data_X}
+        if data_y is None:
+            _data_y = {'data': self.testing_y}
         else:
-            y = {'data': y.reshape(-1, 1)}
-        _ds = DataSetCatCon(X, y, self.args.cat_idx, self.args.objective, trading_dates=_trading_dates)
+            _data_y = {'data': data_y.reshape(-1, 1)}
+        _ds = DataSetCatCon(_data_X, _data_y, self.args.cat_idx, self.args.objective, trading_dates=_trading_dates)
         dataloader = DataLoader(_ds, batch_size=1, shuffle=False, num_workers=4)
         print(f'need_reload_model : {need_reload_model}')
         if need_reload_model:
-            self.load_model(filename_extension=f"{self.args.model_name}_{self.args.blation_test_id}_{self.args.learning_rate}_best",
+            self.load_model(filename_extension=f"{self.args.model_name}_{self.args.learning_rate}_best",
                             directory="tmp")
             self.model.to(self.device)
-        self.model.eval()
-
         predictions = []
         real_testing_y = []
+        mses=[]
+        self.model.eval()
         with torch.no_grad():
 
             for data in tqdm(dataloader, total=len(dataloader)):
-                x_categ, x_cont, y_gts, cat_mask, con_mask = data
+                x_categ, x_cont, y_gts = data
                 x_categ = x_categ.squeeze(0)
                 x_cont = x_cont.squeeze(0)
-                cat_mask = cat_mask.squeeze(0)
-                con_mask = con_mask.squeeze(0)
+                y_gts = y_gts.squeeze(0)
 
                 x_categ, x_cont = x_categ.to(self.device), x_cont.to(self.device)
-                cat_mask, con_mask = cat_mask.to(self.device), con_mask.to(self.device)
-
-                _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, cat_mask, con_mask, self.model)
-                reps = self.model.transformer(x_categ_enc, x_cont_enc,blation_test_id=self.blation_test_id)
+                _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, self.model)
+                reps = self.model.transformer(x_cont_enc, x_categ_enc)
                 y_reps = reps[:, -1, :]
-
                 y_outs = self.model.mlpfory(y_reps)
-                if self.args.objective == "binary" :
-                    y_outs = torch.sigmoid(y_outs).detach().cpu().numpy()
-                elif self.args.objective == "regression":
-                    y_outs = torch.sigmoid(y_outs-0.5).detach().cpu().numpy()
-                else:
-                    y_outs = y_outs.detach().cpu()
 
-                real_testing_y.append(y_gts.squeeze(0).detach().cpu())
+                y_outs = y_outs.detach().cpu()
+
+                real_testing_y.append(y_gts)
                 predictions.append(y_outs)
+                mse = mean_squared_error(y_gts, y_outs)
+                mses.append(mse)
+        print(f'np.array(mses).mean() : {np.array(mses).mean()}')
 
-        f1 = self._f1_score(real_testing_y, predictions).item()
+        mse = self._get_score(real_testing_y, predictions)
 
-        print(f'f1 in {tag} : {f1}')
+        print(f'mse in {tag} : {mse}')
 
-        if tag=='validation':
-            return f1
+        if tag=='validation' or tag=='training':
+            return mse
         else:
             return np.concatenate(predictions),np.concatenate(real_testing_y)
 
-    def _f1_score(self, y_true, y_prediction):
-        y_true = np.concatenate(y_true).reshape((-1,))
+    def _get_score(self, y_true, y_prediction):
+        y_true = np.concatenate(y_true)
         y_prediction = np.concatenate(y_prediction)
-        if self.args.objective == "binary":
-            y_prediction_ = np.concatenate((1 - y_prediction, y_prediction), 1)
-            y_prediction_ = np.argmax(y_prediction_, axis=1)
-        elif self.args.objective == "classification":
-            y_prediction_ = torch.argmax(y_prediction, dim=1).detach().cpu().numpy()
-        else:
-            # y_prediction_ = torch.sigmoid(y_prediction).detach().cpu().numpy()
-            y_prediction_ = np.concatenate((1 - y_prediction, y_prediction), 1)
-            y_prediction_ = np.argmax(y_prediction_, axis=1)
-        print(np.array(y_prediction_))
-        print(np.array(y_true))
-        print(y_prediction_.shape)
+
+        # print(np.array(y_prediction))
+        # print(np.array(y_true))
+        print(y_prediction.shape)
         print(y_true.shape)
-        print(f'np.all(y_prediction_==0) : {np.all(y_prediction_ == 0)}')
-        print(f'np.all(y_prediction_==1) : {np.all(y_prediction_ == 1)}')
-        print(f"np.sum(np.array(y_prediction)) : {np.sum(np.array(y_prediction_))}")
-        print(f"np.array(y_prediction).size : {np.array(y_prediction_).size}")
-        tn, fp, fn, tp = confusion_matrix(y_true, np.array(y_prediction_)).ravel()
-        # print('0：不涨 ， 1：涨')
-        print('tn, fp, fn, tp', tn, fp, fn, tp)
-        f1 = f1_score(y_true, np.array(y_prediction_), average="binary")
-        return f1
+        mse = mean_squared_error(y_true, y_prediction)
+        rmse = mean_squared_error(y_true, y_prediction, squared=False)
+        mae = mean_absolute_error(y_true, y_prediction)
+        print(f'mse : {mse} , rmse : {rmse} , mae : {mae}')
+        return mse
 
     def attribute(self, X, y, strategy=""):
         """ Generate feature attributions for the model input.
@@ -471,17 +417,14 @@ class ATTENTION_3D(BaseModelTorch):
         with torch.no_grad():
             print('test2')
             for data in tqdm(testloader, total=len(testloader)):
-                x_categ, x_cont, y_gts, cat_mask, con_mask = data
+                x_categ, x_cont, y_gts = data
                 x_categ = x_categ.squeeze(0)
                 x_cont = x_cont.squeeze(0)
                 y_gts = y_gts.squeeze(0)
-                cat_mask = cat_mask.squeeze(0)
-                con_mask = con_mask.squeeze(0)
                 x_categ, x_cont = x_categ.to(self.device), x_cont.to(self.device)
-                cat_mask, con_mask = cat_mask.to(self.device), con_mask.to(self.device)
                 # print(x_categ.shape, x_cont.shape)
-                _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, cat_mask, con_mask, self.model)
-                reps = self.model.transformer(x_categ_enc, x_cont_enc)
+                _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, self.model)
+                reps = self.model.transformer(x_cont_enc,x_categ_enc)
                 # y_reps = reps[:, 0, :]
                 # y_outs = self.model.mlpfory(y_reps)
                 if strategy == "diag":

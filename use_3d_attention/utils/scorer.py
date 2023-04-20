@@ -1,5 +1,5 @@
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, f1_score, log_loss, roc_auc_score, \
-    confusion_matrix
+    confusion_matrix, mean_absolute_error
 import numpy as np
 
 
@@ -35,50 +35,34 @@ class RegScorer(Scorer):
 
     def __init__(self):
         self.mses = []
+        self.rmses = []
+        self.mae = []
         self.r2s = []
         self.f1s = []
         self.accs = []
 
     # y_probabilities is None for Regression
     def eval(self, y_true, y_prediction, y_probabilities):
-        mse = mean_squared_error(y_true, y_prediction)
-        r2 = r2_score(y_true, y_prediction)
-        y_prediction_ = np.array([int(i>0.5) for i in y_prediction])
-        print(f'np.all(y_prediction_==0) : {np.all(y_prediction_ == 0)}')
-        print(f'np.all(y_prediction_==1) : {np.all(y_prediction_ == 1)}')
-        print(f"np.sum(np.array(y_prediction)) : {np.sum(np.array(y_prediction_))}")
-        print(f"np.array(y_prediction).size : {np.array(y_prediction_).size}")
-        f1 = f1_score(y_true, y_prediction_, average="binary")
-        acc = accuracy_score(y_true, y_prediction_)
-        self.mses.append(mse)
-        self.r2s.append(r2)
-        self.f1s.append(f1)
-        self.accs.append(acc)
+        rmse = mean_squared_error(y_true, y_prediction.squeeze(), squared=False)
+        mae = mean_absolute_error(y_true, y_prediction.squeeze())
+        self.rmses.append(rmse)
+        self.mae.append(mae)
 
-        return {"MSE": mse, "R2": r2,"F1 score":f1,"accs":acc}
+        return {"RMSE": rmse, "MAE": mae}
 
     def get_results(self):
-        mse_mean = np.mean(self.mses)
-        mse_std = np.std(self.mses)
+        rmse_mean = np.mean(self.rmse)
+        rmse_std = np.std(self.rmse)
 
 
-        r2_mean = np.mean(self.r2s)
-        r2_std = np.std(self.r2s)
+        mae_mean = np.mean(self.mae)
+        mae_std = np.std(self.mae)
 
-        f1_mean = np.mean(self.f1s)
-        f1_std = np.std(self.f1s)
 
-        acc_mean = np.mean(self.accs)
-        acc_std = np.std(self.accs)
-
-        return {"MSE - mean": mse_mean,
-                "MSE - std": mse_std,
-                "R2 - mean": r2_mean,
-                "R2 - std": r2_std,
-                "f1 - mean": f1_mean,
-                "f1 - std": f1_std,
-                "acc - mean": acc_mean,
-                "acc - std": acc_std
+        return {"rmse - mean": rmse_mean,
+                "rmse - std": rmse_std,
+                "mae - mean": mae_mean,
+                "mae - std": mae_std
                 }
 
     def get_objective_result(self):
