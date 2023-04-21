@@ -43,16 +43,16 @@ class RegScorer(Scorer):
 
     # y_probabilities is None for Regression
     def eval(self, y_true, y_prediction, y_probabilities):
-        rmse = mean_squared_error(y_true, y_prediction, squared=False)
-        mae = mean_absolute_error(y_true, y_prediction)
+        rmse = mean_squared_error(y_prediction[1], y_prediction[0], squared=False)
+        mae = mean_absolute_error(y_prediction[1], y_prediction[0])
         self.rmses.append(rmse)
         self.mae.append(mae)
 
         return {"RMSE": rmse, "MAE": mae}
 
     def get_results(self):
-        rmse_mean = np.mean(self.rmse)
-        rmse_std = np.std(self.rmse)
+        rmse_mean = np.mean(self.rmses)
+        rmse_std = np.std(self.rmses)
 
 
         mae_mean = np.mean(self.mae)
