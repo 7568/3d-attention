@@ -2,9 +2,9 @@
 dataset: H_sh_300_options
 objective: regression  # Don't change binary_f1 binary
 # 如果是 binary或者 regression 那么num_classes为1
-
-# prepare_home_path: '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
-prepare_home_path: '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300/'
+learning_rate: 0.0001
+prepare_home_path: '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
+#prepare_home_path: '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300/'
 normal_type: 'mean_norm'
 use_much_features: false
 
@@ -16,9 +16,9 @@ use_pretrain_data: False
 # optimize_hyperparameters: True
 use_gpu: True
 # use one GPU parameters
-gpu_index: 0
+gpu_index: 2
 # use GPU data_parallel parameters
-gpu_ids: [ 0, 1 ]
+gpu_ids: [ 0, 1, 2, 3, 4, 5, 6, 7]
 
 
 data_parallel: False

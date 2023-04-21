@@ -127,7 +127,7 @@ def init_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_to_file', action='store_true')
     parser.add_argument('--epochs', default=1000, type=int)
-    parser.add_argument('--batchsize', default=128, type=int)
+    parser.add_argument('--batchsize', default=512, type=int)
     parser.add_argument('--hidden_size', default=64, type=int)  # The number of features in the hidden state h
     parser.add_argument('--num_layers', default=5, type=int)
     parser.add_argument('--lr', default=0.001, type=float)
@@ -140,13 +140,18 @@ if __name__ == '__main__':
     opt = init_parser()
     if opt.log_to_file:
         logger = util.init_log('lstm')
-    use_much_features = True
+    use_much_features = False
     train_model(use_much_features)
 
 """
 h_sh_300
-validation rmse : 0.04811541363048127 , mae : 0.0251478114582285
-testing rmse : 0.04673098007204823 , mae : 0.02567159558187799
+use_much_features = True
+validation rmse : 0.004036936887173826 , mae : 0.002130362190093025
+testing rmse : 0.004675756610792724 , mae : 0.002104783016949187
+
+use_much_features = False
+validation rmse : 0.03754063364282469 , mae : 0.017040287596522707
+testing rmse : 0.0429548307882293 , mae : 0.017727977690909127
 """
 
 """

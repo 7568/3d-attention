@@ -3,6 +3,7 @@ import numpy as np
 
 
 def embed_data_mask(x_categ, x_cont,  model):
+    # return x_categ, x_categ, x_cont
     device = x_cont.device
     x_categ_enc = None
     if x_categ.shape[1]>0:

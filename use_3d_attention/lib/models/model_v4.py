@@ -4,12 +4,10 @@ from torch import nn, einsum
 import numpy as np
 from einops import rearrange
 
-"""
-对每一天的数据使用相同的网络参数来处理，但是只是对处理第0天的网络才进行梯度回传
-"""
 
-
-# helpers
+"""
+没有encoder的过程
+"""
 
 def exists(val):
     return val is not None
@@ -108,49 +106,33 @@ class RowColTransformer(nn.Module):
         self.layers = nn.ModuleList([])
         self.layers_mirror = nn.ModuleList([])
         self.mask_embed = nn.Embedding(nfeats, dim)
-        # max_length = 10
-        self.each_day_feature_num = each_day_feature_num
-        self.each_day_cat_feature_num = each_day_cat_feature_num
-        self.sequence_length = sequence_length
-        self.encode_length = dim
-        # self.pos_embedding = nn.Embedding(max_length, int(dim * nfeats / self.sequence_length))
-        self.scale = torch.sqrt(torch.FloatTensor([dim * nfeats / self.sequence_length]).to(device))
+        max_length = 10
+        self.pos_embedding = nn.Embedding(max_length, int(dim * nfeats / 5))
+        self.scale = torch.sqrt(torch.FloatTensor([dim * nfeats / 5]).to(device))
         self.style = style
+        self.encoder = simple_MLP([1, 100, 16])
+        self.decoder = simple_MLP([16, 100, 1])
+        dim= 6
         for _ in range(depth):
             if self.style == 'colrow':
                 self.layers.append(nn.ModuleList([
-                    PreNorm(dim, Residual(Attention(dim, heads=1, dropout=attn_dropout))),
+                    PreNorm(16, Residual(Attention(16, heads=1, dropout=attn_dropout))),
+                    PreNorm(16, Residual(FeedForward(16, dropout=ff_dropout))),
+                    PreNorm(dim,
+                            Residual(Attention(dim, heads=1, dropout=attn_dropout))),
                     PreNorm(dim, Residual(FeedForward(dim, dropout=ff_dropout))),
 
-                    PreNorm(dim * nfeats // self.sequence_length,
-                            Residual(
-                                Attention(dim * nfeats // self.sequence_length, heads=1,
-                                          dropout=attn_dropout))),
-                    PreNorm(dim * nfeats // self.sequence_length,
-                            Residual(FeedForward(dim * nfeats // self.sequence_length, dropout=ff_dropout))),
+                    PreNorm(dim,
+                            Residual(Attention(dim, heads=1, dropout=attn_dropout))),
+                    PreNorm(dim, Residual(FeedForward(dim, dropout=ff_dropout))),
 
-                    PreNorm(int(dim * nfeats / self.sequence_length),
-                            Residual(Attention(int(dim * nfeats / self.sequence_length),
-                                               heads=1, dropout=attn_dropout))),
-                    PreNorm(dim * nfeats // self.sequence_length,
-                            Residual(FeedForward(dim * nfeats // self.sequence_length, dropout=ff_dropout))),
-
-                    PreNorm(dim * self.sequence_length,
-                            Residual(Attention(dim * self.sequence_length,
-                                               heads=1, dropout=attn_dropout))),
-                    PreNorm(dim * self.sequence_length,
-                            Residual(FeedForward(dim * self.sequence_length, dropout=ff_dropout))),
+                    PreNorm(5,
+                            Residual(Attention(5, heads=1, dropout=attn_dropout))),
+                    PreNorm(5, Residual(FeedForward(5, dropout=ff_dropout))),
                 ]))
                 self.layers_mirror.append(nn.ModuleList([
-                    PreNorm(dim, Residual(Attention(dim, heads=1, dropout=attn_dropout))),
-                    PreNorm(dim, Residual(FeedForward(dim, dropout=ff_dropout))),
-                    PreNorm(dim * nfeats // self.sequence_length,
-                            Residual(
-                                Attention(dim * nfeats // self.sequence_length, heads=nfeats,
-                                          dropout=attn_dropout))),
-                    PreNorm(dim,Residual(FeedForward(dim, dropout=ff_dropout))),
-                    PreNorm(dim,Residual(FeedForward(dim, dropout=ff_dropout)))
-
+                    PreNorm(16, Residual(Attention(16, heads=1, dropout=attn_dropout))),
+                    PreNorm(16, Residual(FeedForward(16, dropout=ff_dropout))),
                 ]))
                 self.freeze_weights(self.layers_mirror)
             else:
@@ -183,43 +165,46 @@ class RowColTransformer(nn.Module):
 
     def forward(self, x, x_cat=None):
 
-        if x_cat is not None:
-            x_new = []
-            for i in range(self.sequence_length):
-                x_new.append(torch.cat((x[:, i * 3:(i + 1) * self.each_day_cat_feature_num, :], x_cat[:, i * (
-                        self.each_day_feature_num - self.each_day_cat_feature_num):(i + 1) * (
-                        self.each_day_feature_num - self.each_day_cat_feature_num), :]), dim=1))
-            x = torch.cat(x_new, dim=1)
+        batch, n = x.shape
+        x = rearrange(x, 'b (d f) -> b d f',d=5)
+        if self.style == 'colrow':
+            for (attn1, ff1, attn2, ff2, attn3, ff3, attn4, ff4), (attn1_mirror, ff1_mirror) in zip(
+                    self.layers, self.layers_mirror):
+                self.copy_datas(attn1, attn1_mirror)
+                self.copy_datas(ff1, ff1_mirror)
+                x = rearrange(x, 'b d f -> b (d f) 1')
+                x_enc = self.encoder(x)
+                x_cont_enc_0 = attn1(x_enc[:,0:6,:])
+                x1_0 = ff1(x_cont_enc_0)
+                x1 = []
+                x1.append(x1_0)
+                for j in range(1, 5):
+                    x_enc_j = attn1_mirror(x_enc[:, j * 6:(j + 1) * 6, :])
+                    x_enc_j = ff1_mirror(x_enc_j)
+                    x1.append(x_enc_j)
+                x1 = torch.cat(x1, dim=1)
+                x1 = self.decoder(x1)
+                x1 = rearrange(x1.squeeze(2), 'b (d f) -> b d f',d=5)
+
+                x2 = x1.permute(1,0,2)
+                x2 = attn2(x2)
+                x2 = ff2(x2)
+
+                x3 = x2.permute(1,0,2)
+                x3 = attn3(x3)
+                x3 = ff3(x3)
+
+                x4 = x3.permute(0,2,1)
+                x4 = attn4(x4)
+                x4 = ff4(x4)
+                x = 0.0 * x1 + 0.0 * x2.permute(1, 0,2) + 0.0 * x3+ 1.0 * x4.permute(0,2,1)
+
         else:
-            # print(f'x_cont is {x_cat}')
-            pass
-        batch, n, _ = x.shape
-        for (attn1, ff1, attn2, ff2, attn3, ff3, attn4, ff4), (attn1_mirror, ff1_mirror, attn2_mirror, ff2_mirror,ff3_mirror) in zip(
-                self.layers, self.layers_mirror):
-
-            i = 0
-            _x1 = attn1(x)
-            x1 = ff1(_x1)
-
-            x2_ = rearrange(x1, 'b (s f) d -> b s f d',s=5)
-            x2_ = rearrange(x2_, 'b s f d -> s b (f d)')
-            _x2_ = attn2(x2_)
-            x2 = ff2(_x2_)
-
-            x3 = x2.permute(1,0,2)
-
-
-            pos = torch.sin(torch.arange(self.sequence_length, 0, -1).unsqueeze(1).repeat(1, n//self.sequence_length*self.encode_length) * 0.1).to(self.device)
-            pos = pos.unsqueeze(0).repeat(batch,1,1)
-            # pos = torch.arange(self.sequence_length, 0, -1).unsqueeze(0).repeat(batch, 1).to(self.device)
-            # x3 = x3 * self.scale + self.pos_embedding(pos)
-            x3 = x3 * self.scale + pos
-            x3 = attn3(x3)
-            x3 = ff3(x3)
-            x4 = rearrange(x3, 'b s (f d) -> b f (s d)', f=6)
-            x4 = attn4(x4)
-            x4 = ff4(x4)
-            x = rearrange(x4, 'b f (s d) -> b (s f) d', s=5)
+            for attn1, ff1 in self.layers:
+                x = rearrange(x, 'b n d -> 1 b (n d)')
+                x = attn1(x)
+                x = ff1(x)
+                x = rearrange(x, '1 b (n d) -> b n d', n=n)
 
         x = x[:, 0:1, :]
         # x = rearrange(x, 'b n d -> b (n d)')

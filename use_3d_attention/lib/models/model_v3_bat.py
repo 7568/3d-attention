@@ -121,7 +121,6 @@ class RowColTransformer(nn.Module):
                 self.layers.append(nn.ModuleList([
                     PreNorm(dim, Residual(Attention(dim, heads=1, dropout=attn_dropout))),
                     PreNorm(dim, Residual(FeedForward(dim, dropout=ff_dropout))),
-
                     PreNorm(dim * nfeats // self.sequence_length,
                             Residual(
                                 Attention(dim * nfeats // self.sequence_length, heads=1,
@@ -132,24 +131,18 @@ class RowColTransformer(nn.Module):
                     PreNorm(int(dim * nfeats / self.sequence_length),
                             Residual(Attention(int(dim * nfeats / self.sequence_length),
                                                heads=1, dropout=attn_dropout))),
-                    PreNorm(dim * nfeats // self.sequence_length,
-                            Residual(FeedForward(dim * nfeats // self.sequence_length, dropout=ff_dropout))),
-
-                    PreNorm(dim * self.sequence_length,
-                            Residual(Attention(dim * self.sequence_length,
-                                               heads=1, dropout=attn_dropout))),
-                    PreNorm(dim * self.sequence_length,
-                            Residual(FeedForward(dim * self.sequence_length, dropout=ff_dropout))),
+                    PreNorm(int(dim * nfeats / self.sequence_length),
+                            Residual(FeedForward(int(dim * nfeats / self.sequence_length), dropout=ff_dropout))),
                 ]))
                 self.layers_mirror.append(nn.ModuleList([
                     PreNorm(dim, Residual(Attention(dim, heads=1, dropout=attn_dropout))),
                     PreNorm(dim, Residual(FeedForward(dim, dropout=ff_dropout))),
                     PreNorm(dim * nfeats // self.sequence_length,
                             Residual(
-                                Attention(dim * nfeats // self.sequence_length, heads=nfeats,
+                                Attention(dim * nfeats // self.sequence_length, heads=1,
                                           dropout=attn_dropout))),
-                    PreNorm(dim,Residual(FeedForward(dim, dropout=ff_dropout))),
-                    PreNorm(dim,Residual(FeedForward(dim, dropout=ff_dropout)))
+                    PreNorm(dim * nfeats // self.sequence_length,
+                            Residual(FeedForward(dim * nfeats // self.sequence_length, dropout=ff_dropout)))
 
                 ]))
                 self.freeze_weights(self.layers_mirror)
@@ -194,21 +187,38 @@ class RowColTransformer(nn.Module):
             # print(f'x_cont is {x_cat}')
             pass
         batch, n, _ = x.shape
-        for (attn1, ff1, attn2, ff2, attn3, ff3, attn4, ff4), (attn1_mirror, ff1_mirror, attn2_mirror, ff2_mirror,ff3_mirror) in zip(
+        for (attn1, ff1, attn2, ff2, attn3, ff3), (attn1_mirror, ff1_mirror, attn2_mirror, ff2_mirror) in zip(
                 self.layers, self.layers_mirror):
-
+            self.copy_datas(attn1, attn1_mirror)
+            self.copy_datas(ff1, ff1_mirror)
+            self.copy_datas(attn2, attn2_mirror)
+            self.copy_datas(ff2, ff2_mirror)
+            x1 = []
             i = 0
-            _x1 = attn1(x)
-            x1 = ff1(_x1)
+            _x1 = attn1(x[:, i * self.each_day_feature_num:(i + 1) * self.each_day_feature_num, :])
+            _x1 = ff1(_x1)
+            x1.append(_x1)
+            for j in range(1, self.sequence_length):
+                _x1 = attn1_mirror(x[:, j * self.each_day_feature_num:(j + 1) * self.each_day_feature_num, :])
+                _x1 = ff1_mirror(_x1)
+                x1.append(_x1)
+            x1 = torch.cat(x1, dim=1)
 
-            x2_ = rearrange(x1, 'b (s f) d -> b s f d',s=5)
-            x2_ = rearrange(x2_, 'b s f d -> s b (f d)')
-            _x2_ = attn2(x2_)
-            x2 = ff2(_x2_)
+            x2 = []
+            x2_ = rearrange(x1, 'b n d -> 1 b (n d)')
+            _x2 = attn2(x2_[:, :, i * self.each_day_feature_num * self.encode_length:(i + 1) * self.each_day_feature_num * self.encode_length])
+            _x2 = ff2(_x2)
+            x2.append(_x2)
+            for j in range(1, self.sequence_length):
+                _x2 = attn2_mirror(x2_[:, :, j * self.each_day_feature_num * self.encode_length:(j + 1) * self.each_day_feature_num * self.encode_length])
+                _x2 = ff2_mirror(_x2)
+                x2.append(_x2)
+            x2 = torch.cat(x2, dim=2)
 
-            x3 = x2.permute(1,0,2)
+            x2 = rearrange(x2, '1 b (n d) -> b n d', n=n)
 
-
+            x3 = rearrange(x2, 'b (d_1 d_2) d -> b d_1 d_2 d', d_1=self.sequence_length)
+            x3 = rearrange(x3, 'b d_1 d_2 d -> b d_1 (d_2 d)')
             pos = torch.sin(torch.arange(self.sequence_length, 0, -1).unsqueeze(1).repeat(1, n//self.sequence_length*self.encode_length) * 0.1).to(self.device)
             pos = pos.unsqueeze(0).repeat(batch,1,1)
             # pos = torch.arange(self.sequence_length, 0, -1).unsqueeze(0).repeat(batch, 1).to(self.device)
@@ -216,12 +226,12 @@ class RowColTransformer(nn.Module):
             x3 = x3 * self.scale + pos
             x3 = attn3(x3)
             x3 = ff3(x3)
-            x4 = rearrange(x3, 'b s (f d) -> b f (s d)', f=6)
-            x4 = attn4(x4)
-            x4 = ff4(x4)
-            x = rearrange(x4, 'b f (s d) -> b (s f) d', s=5)
+            x3 = rearrange(x3, 'b d_1 (d_2 d) -> b d_1 d_2 d', d=self.encode_length)
+            x3 = rearrange(x3, 'b d_1 d_2 d -> b (d_1 d_2) d')
 
-        x = x[:, 0:1, :]
+            x = 0.0 * x1 + 0.0 * x2 + 1.0 * x3
+
+        x = x[:, 0:self.each_day_feature_num, :]
         # x = rearrange(x, 'b n d -> b (n d)')
         return x
 
