@@ -59,7 +59,7 @@ def load_3_d_data(use_much_features,prepare_home_path,normal_type):
     if use_much_features:
         less_features = ['ClosePrice','TradingDate','TheoreticalPrice', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho',
                          'OpenPrice', 'HighPrice', 'LowPrice', 'SettlePrice', 'Change1', 'Change2', 'Volume',
-                         'Position', 'Amount', 'PositionChange','TradingDate',
+                         'Position', 'Amount', 'PositionChange',
                          'rate_1_formatted', 'rate_2_formatted', 'rate_3_formatted', 'rate_7_formatted',
                          'rate_14_formatted', 'rate_21_formatted',
                          'AvgPrice', 'ClosePriceChangeRatio', 'SettlePriceChangeRatio', 'Amplitude', 'LimitUp',
@@ -114,8 +114,8 @@ def load_data(args):
     #
     # num_idx = []
     # args.cat_dims = []
-    #
-    # # Preprocess data
+
+    # Preprocess data
     # for i in range(args.num_features):
     #     if args.cat_idx and i in args.cat_idx:
     #         le = LabelEncoder()

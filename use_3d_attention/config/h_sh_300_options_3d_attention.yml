@@ -6,7 +6,7 @@ learning_rate: 0.0001
 prepare_home_path: '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
 #prepare_home_path: '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300/'
 normal_type: 'mean_norm'
-use_much_features: false
+use_much_features: True
 
 pretrain: False
 pretrain_epochs: 17
@@ -44,10 +44,11 @@ logging_period: 20
 
 # About the data
 num_classes: 1  # for classification
-#num_features: 180
-#cat_idx: [ 35, 71, 107, 143, 179]
+num_features: 180
+cat_idx: [ 35, 71, 107, 143, 179]
+cat_dims: [ 2, 2, 2, 2, 2 ]
 
-num_features: 30
-cat_idx: [ ]
+#num_features: 30
+#cat_idx: [ ]
 # cat_dims: will be automatically set.
 #cat_dims: [ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ]

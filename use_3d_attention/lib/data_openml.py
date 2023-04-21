@@ -81,7 +81,7 @@ class DataSetCatCon(Dataset):
         #     mask_x1 = mask_x1.reshape(1,-1)
         # if len(mask_x2.shape)==1:
         #     mask_x2 = mask_x2.reshape(1,-1)
-        return  np.float32(x_1), np.float32(x_2), np.float32(y)
+        return  np.int32(x_1), np.float32(x_2), np.float32(y)
 
 
 class DataSetCatCon_pretrain(Dataset):

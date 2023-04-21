@@ -182,13 +182,13 @@ class RowColTransformer(nn.Module):
                 param_target.data.copy_(param_source.data)
 
     def forward(self, x, x_cat=None):
-
         if x_cat is not None:
+            batch, n, _ = x.shape
+            batch_c, n_c, _ = x_cat.shape
             x_new = []
             for i in range(self.sequence_length):
-                x_new.append(torch.cat((x[:, i * 3:(i + 1) * self.each_day_cat_feature_num, :], x_cat[:, i * (
-                        self.each_day_feature_num - self.each_day_cat_feature_num):(i + 1) * (
-                        self.each_day_feature_num - self.each_day_cat_feature_num), :]), dim=1))
+                x_new.append(torch.cat((x[:, i * (n//self.sequence_length):(i+1) * (n//self.sequence_length), :],
+                                        x_cat[:, i * (n_c//self.sequence_length):(i+1) * (n_c//self.sequence_length), :]), dim=1))
             x = torch.cat(x_new, dim=1)
         else:
             # print(f'x_cont is {x_cat}')
@@ -216,7 +216,7 @@ class RowColTransformer(nn.Module):
             x3 = x3 * self.scale + pos
             x3 = attn3(x3)
             x3 = ff3(x3)
-            x4 = rearrange(x3, 'b s (f d) -> b f (s d)', f=6)
+            x4 = rearrange(x3, 'b s (f d) -> b f (s d)', f=self.each_day_feature_num)
             x4 = attn4(x4)
             x4 = ff4(x4)
             x = rearrange(x4, 'b f (s d) -> b (s f) d', s=5)
