@@ -69,7 +69,7 @@ def load_sequence_data(use_much_features,prepare_home_path,normal_type,opt):
 
     training_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/training.csv')
     validation_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/validation.csv')
-    testing_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/testing.csv')
+    testing_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/testing.csv', parse_dates=['TradingDate'])
     less_features = ['ClosePrice', 'rate_7_formatted', 'UnderlyingScrtClose', 'ImpliedVolatility', 'StrikePrice',
                      'RemainingTerm']
     if use_much_features:

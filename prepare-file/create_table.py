@@ -8,6 +8,7 @@ from openpyxl import Workbook
 
 def create_table_001(ta):
     df = pd.read_csv(f'{DATA_HOME_PATH}/all_raw_data_c_formatted.csv', parse_dates=['TradingDate'])
+    df.loc[:, 'RemainingTerm'] = np.round((df['RemainingTerm'] * 365).to_numpy())
     print(df.shape)
     df_year_2017 = df[df['TradingDate'] < pd.Timestamp('2018-01-01')]
     mask_2018 = (df['TradingDate'] < pd.Timestamp('2019-01-01')) & (df['TradingDate'] > pd.Timestamp('2017-12-31'))
@@ -116,6 +117,7 @@ def save_data_statistics(ta,tb,tc):
 def create_table_002(ta):
     #H_sh_300 call option data statistics sorted by moneyness
     df = pd.read_csv(f'{DATA_HOME_PATH}/all_raw_data_c_formatted.csv', parse_dates=['TradingDate'])
+    df.loc[:, 'RemainingTerm'] = np.round((df['RemainingTerm'] * 365).to_numpy())
     print(df.shape)
     df = caculate_df_year(df)
 
@@ -139,6 +141,7 @@ if __name__ == '__main__':
     OPTION_SYMBOL = 'index-option/h_sh_300'
     DATA_HOME_PATH = HOME_PATH + "/" + OPTION_SYMBOL + "/"
     # reformatt_data()
+
     create_table_001('h_sh_300_sorted_by_years')
 
     OPTION_SYMBOL = 'ETF50-option'
