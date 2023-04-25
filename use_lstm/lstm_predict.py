@@ -91,7 +91,7 @@ def get_result( testing_df,y_test_true, y_test_hat,dataset_name,testing_df_tradi
     strike = testing_df['StrikePrice'].to_numpy()
     df_year = spot / strike
     testing_df.loc[:, 'moneyness'] = df_year
-    testing_df.loc[:, 'RemainingTerm'] = testing_df['RemainingTerm'] * 365
+    testing_df.loc[:, 'RemainingTerm'] = np.round((testing_df['RemainingTerm'] * 365).to_numpy())
     result_df = testing_df[['TradingDate', 'moneyness', 'RemainingTerm', 'y_test_true', 'y_test_hat']]
     table_name = f'{dataset_name}_moneyness_maturity'
     lib_util.analysis_by_moneyness_maturity(result_df, max_day, table_name)
@@ -125,7 +125,7 @@ def init_parser():
 
 
 # PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
-PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300/'
+PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300_option/'
 if __name__ == '__main__':
     opt = init_parser()
     if opt.log_to_file:

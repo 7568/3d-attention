@@ -19,15 +19,15 @@ def reformat_data(training_df, validation_df, testing_df, not_use_pre_data=False
     target_fea = 'ClosePrice'
     train_x = training_df.copy()
     print(training_df.columns)
-    train_x[target_fea]=1
+    train_x[target_fea]=0
     train_y = training_df[target_fea]
 
     validation_x = validation_df.copy()
-    validation_x[target_fea]=1
+    validation_x[target_fea]=0
     validation_y = validation_df[target_fea]
 
     testing_x = testing_df.copy()
-    testing_x[target_fea]=1
+    testing_x[target_fea]=0
     testing_y = testing_df[target_fea]
 
     # latest_x = latest_df.copy()
@@ -48,15 +48,15 @@ def reformat_data(training_df, validation_df, testing_df, not_use_pre_data=False
 
 
 
-def load_3_d_data(use_much_features,prepare_home_path,normal_type):
+def load_3_d_data(args):
 
-    training_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/training.csv')
-    validation_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/validation.csv')
-    testing_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/testing.csv')
+    training_df = pd.read_csv(f'{args.prepare_home_path}/{args.dataset}/{args.normal_type}/training.csv')
+    validation_df = pd.read_csv(f'{args.prepare_home_path}/{args.dataset}/{args.normal_type}/validation.csv')
+    testing_df = pd.read_csv(f'{args.prepare_home_path}/{args.dataset}/{args.normal_type}/testing.csv')
     less_features = ['ClosePrice', 'TradingDate','rate_7_formatted', 'UnderlyingScrtClose', 'ImpliedVolatility', 'StrikePrice',
                      'RemainingTerm']
     cat_features=[]
-    if use_much_features:
+    if args.use_much_features:
         less_features = ['ClosePrice','TradingDate','TheoreticalPrice', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho',
                          'OpenPrice', 'HighPrice', 'LowPrice', 'SettlePrice', 'Change1', 'Change2', 'Volume',
                          'Position', 'Amount', 'PositionChange',
@@ -99,7 +99,7 @@ def load_3_d_data(use_much_features,prepare_home_path,normal_type):
 
 def load_data(args):
     print("Loading dataset " + args.dataset + "...")
-    X, y, training_trading_dates, validation_trading_dates, testing_trading_dates = load_3_d_data(args.use_much_features,args.prepare_home_path,args.normal_type)
+    X, y, training_trading_dates, validation_trading_dates, testing_trading_dates = load_3_d_data(args)
     # # Preprocess target
     # if args.target_encode:
     #     le = LabelEncoder()

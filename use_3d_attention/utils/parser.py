@@ -41,34 +41,17 @@ def get_parser():
     parser.add('--target_encode', action="store_true", help="Encode the targets that they start at 0. (0, 1, 2,...)")
     parser.add('--one_hot_encode', action="store_true", help="OneHotEncode the categorical features")
 
-    parser.add('--batch_size', type=int, default=128, help="Batch size used for training")
-    parser.add('--val_batch_size', type=int, default=128, help="Batch size used for training and testing")
+    parser.add('--batch_size', type=int, default=1, help="Batch size used for training")
+    parser.add('--val_batch_size', type=int, default=1, help="Batch size used for training and testing")
     parser.add('--early_stopping_rounds', type=int, default=20, help="Number of rounds before early stopping applies.")
     parser.add('--epochs', type=int, default=1000, help="Max number of epochs to train.")
-    parser.add('--logging_period', type=int, default=100, help="Number of iteration after which validation is printed.")
+    parser.add('--logging_period', type=int, default=10, help="Number of iteration after which validation is printed.")
 
     parser.add('--num_features', type=int, required=True, help="Set the total number of features.")
     parser.add('--num_classes', type=int, default=1, help="Set the number of classes in a classification task.")
     parser.add('--cat_idx', type=int, action="append", help="Indices of the categorical features")
     parser.add('--cat_dims', type=int, action="append", help="Cardinality of the categorical features (is set "
                                                              "automatically, when the load_data function is used.")
-
-    parser.add_argument('--use_pretrain_data', default=False, action='store_true')
-    parser.add_argument('--pretrain', default=False, action='store_true')
-    parser.add_argument('--pretrain_epochs', default=10, type=int)
-    parser.add_argument('--pt_tasks', default=['contrastive', 'denoising'], type=str, nargs='*',
-                        choices=['contrastive', 'contrastive_sim', 'denoising'])
-    parser.add_argument('--pt_aug', default=['mixup', 'cutmix'], type=str, nargs='*', choices=['mixup', 'cutmix', 'gauss_noise'])
-    parser.add_argument('--pt_aug_lam', default=0.1, type=float)
-    parser.add_argument('--mixup_lam', default=0.3, type=float)
-    parser.add_argument('--ssl_avail_y', default=0, type=int)
-    parser.add_argument('--pt_projhead_style', default='diff', type=str, choices=['diff', 'same', 'nohead'])
-    parser.add_argument('--nce_temp', default=0.7, type=float)
-    parser.add_argument('--lam0', default=0.5, type=float)
-    parser.add_argument('--lam1', default=10, type=float)
-    parser.add_argument('--lam2', default=1, type=float)
-    parser.add_argument('--lam3', default=10, type=float)
-    parser.add_argument('--final_mlp_style', default='sep', type=str, choices=['common', 'sep'])
     # Todo: Validate the arguments
 
     return parser

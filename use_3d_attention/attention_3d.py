@@ -1,4 +1,5 @@
-# The SAINT model.
+import pandas as pd
+
 from basemodel_torch import BaseModelTorch
 
 import torch
@@ -10,19 +11,25 @@ import numpy as np
 from torch import einsum
 from einops import rearrange
 from sklearn.metrics import mean_squared_error,mean_absolute_error
-from lib.models.pretrainmodel import SAINT as SAINTModel
+from lib.models.pretrainmodel import ATTENTION_3D as ATTENTION_3Dodel
 from lib.data_openml import DataSetCatCon
 from lib.augmentations import embed_data_mask, mixup_data, add_noise
 from tqdm import tqdm
 from torchmetrics.classification import BinaryF1Score
-from utils import scorer
+import os
+import sys
+
+sys.path.append(os.path.dirname("../../*"))
+sys.path.append(os.path.dirname("../*"))
+from library import util as lib_util
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 '''
     batch内数据为一天内的数据
 '''
 
 
-class ATTENTION_3D(BaseModelTorch):
+class SELF_ATTENTION(BaseModelTorch):
 
     def __init__(self, params, args):
         super().__init__(params, args)
@@ -44,7 +51,7 @@ class ATTENTION_3D(BaseModelTorch):
         self.cat_dims = cat_dims
         if args.cat_idx is None:
             args.cat_idx=[]
-        self.model = SAINTModel(
+        self.model = ATTENTION_3Dodel(
             categories=tuple(cat_dims),
             num_continuous=len(num_idx),
             dim=self.params["dim"],
@@ -81,7 +88,7 @@ class ATTENTION_3D(BaseModelTorch):
         print(f'self.learning_rate : {self.args.learning_rate}')
         optimizer = optim.AdamW(self.model.parameters(), lr=self.args.learning_rate)
 
-        # SAINT wants it like this...
+        # ATTENTION_3D wants it like this...
         X_train = {'data': X}
         y_train = {'data': y.reshape(-1, 1)}
         # X_val = {'data': X_val, 'mask': np.ones_like(X_val)}
@@ -136,7 +143,8 @@ class ATTENTION_3D(BaseModelTorch):
                 # print("Loss", loss.item())
 
             print(f'epoche " {epoch} , average loss : {np.array(loss_history).mean()} , average rmses : {np.array(rmses).mean()}')
-
+            if epoch<10:
+                continue
             # train_mse = self.predict_helper(X_train['data'],training_trading_dates,y_train['data'],tag='training',need_reload_model=False)
             # print(f'train mse : {train_mse}')
             mse = self.predict_helper(X_val,validation_trading_dates,y_val,tag='validation',need_reload_model=False)
@@ -159,163 +167,70 @@ class ATTENTION_3D(BaseModelTorch):
         # self.load_model(filename_extension="best", directory="tmp")
         return loss_history, val_loss_history
 
-    def pretrain(self, X, y, trading_dates=None, use_pretrain_data=False):
-
-        criterion = nn.CrossEntropyLoss().to(self.device)
-        self.model.to(self.device)
-        optimizer = optim.AdamW(self.model.parameters(), lr=0.0001)
-
-        # SAINT wants it like this...
-        # x_data = np.concatenate((X,X_val),axis=0)
-        # y_data_1 = y.reshape(-1, 1)
-        # y_data_2 = y_val.reshape(-1, 1)
-        # y_data = np.concatenate((y_data_1,y_data_2),axis=0)
-        x_data = {'data': X, 'mask': np.ones_like(X)}
-        y_data = {'data': y}
-
-        train_ds = DataSetCatCon(x_data, y_data, self.args.cat_idx, self.args.objective, trading_dates=trading_dates)
-        trainloader = DataLoader(train_ds, batch_size=1, num_workers=8)
-
-        loss_history = []
-        pt_aug_dict = {
-            'noise_type': self.args.pt_aug,
-            'lambda': self.args.pt_aug_lam
-        }
-        criterion1 = nn.CrossEntropyLoss()
-        criterion2 = nn.MSELoss()
-        print("Pretraining begins!")
-        for epoch in range(self.args.pretrain_epochs):
-            self.model.train()
-
-            for i, data in tqdm(enumerate(trainloader), total=len(trainloader)):
-
-                # x_categ is the the categorical data,
-                # x_cont has continuous data,
-                # y_gts has ground truth ys.
-                # cat_mask is an array of ones same shape as x_categ and an additional column(corresponding to CLS
-                # token) set to 0s.
-                # con_mask is an array of ones same shape as x_cont.
-                x_categ, x_cont, y_gts= data
-                x_categ = x_categ.squeeze(0)
-                x_cont = x_cont.squeeze(0)
-                y_gts = y_gts.squeeze(0)
-
-                x_categ, x_cont = x_categ.to(self.device), x_cont.to(self.device)
-                _, x_categ_enc_2, x_cont_enc_2 = embed_data_mask(x_categ, x_cont, self.model)
-                _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont,  self.model)
-
-                loss = 0
-                if 'contrastive' in self.args.pt_tasks:
-                    aug_features_1 = self.model.transformer(x_categ_enc, x_cont_enc)
-                    aug_features_2 = self.model.transformer(x_categ_enc_2, x_cont_enc_2)
-                    aug_features_1 = (aug_features_1 / aug_features_1.norm(dim=-1, keepdim=True)).flatten(1, 2)
-                    aug_features_2 = (aug_features_2 / aug_features_2.norm(dim=-1, keepdim=True)).flatten(1, 2)
-                    if self.args.pt_projhead_style == 'diff':
-                        aug_features_1 = self.model.pt_mlp(aug_features_1)
-                        aug_features_2 = self.model.pt_mlp2(aug_features_2)
-                    elif self.args.pt_projhead_style == 'same':
-                        aug_features_1 = self.model.pt_mlp(aug_features_1)
-                        aug_features_2 = self.model.pt_mlp(aug_features_2)
-                    else:
-                        print('Not using projection head')
-                    logits_per_aug1 = aug_features_1 @ aug_features_2.t() / self.args.nce_temp
-                    logits_per_aug2 = aug_features_2 @ aug_features_1.t() / self.args.nce_temp
-                    targets = torch.arange(logits_per_aug1.size(0)).to(logits_per_aug1.device)
-                    loss_1 = criterion(logits_per_aug1, targets)
-                    loss_2 = criterion(logits_per_aug2, targets)
-                    loss = self.args.lam0 * (loss_1 + loss_2) / 2
-                elif 'contrastive_sim' in self.args.pt_tasks:
-                    aug_features_1 = self.model.transformer(x_cont_enc,x_categ_enc)
-                    aug_features_2 = self.model.transformer(x_cont_enc_2,x_categ_enc_2)
-                    aug_features_1 = (aug_features_1 / aug_features_1.norm(dim=-1, keepdim=True)).flatten(1, 2)
-                    aug_features_2 = (aug_features_2 / aug_features_2.norm(dim=-1, keepdim=True)).flatten(1, 2)
-                    aug_features_1 = self.model.pt_mlp(aug_features_1)
-                    aug_features_2 = self.model.pt_mlp2(aug_features_2)
-                    c1 = aug_features_1 @ aug_features_2.t()
-                    loss += self.args.lam1 * torch.diagonal(-1 * c1).add_(1).pow_(2).sum()
-                if 'denoising' in self.args.pt_tasks:
-                    cat_outs, con_outs = self.model( x_cont_enc_2,x_categ_enc_2)
-                    con_outs = torch.cat(con_outs, dim=1)
-                    _x_cont = x_cont[:, 0:x_cont.shape[1] // 5]
-                    l2 = criterion2(con_outs, _x_cont)
-                    l1 = 0
-                    _x_categ = x_categ[:, 0:x_categ.shape[1] // 5]
-                    for j in range(len(self.cat_dims) // 5):
-                        l1 += criterion1(cat_outs[j], _x_categ[:, j])
-                    loss += self.args.lam2 * l1 + self.args.lam3 * l2
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-
-                loss_history.append(loss.item())
-
-                # print("Loss", loss.item())
-
-            if use_pretrain_data:
-                self.save_model(filename_extension="pretrain_2", directory="tmp")
-            else:
-                self.save_model(filename_extension="pretrain", directory="tmp")
-            print(np.array(loss_history).mean())
 
     def set_testing(self, x, y, testing_trading_dates=None):
         self.testing_x = x
         self.testing_y = y.reshape(-1, 1)
         self.testing_trading_dates = testing_trading_dates
 
-    # def _predict_helper(self, val_dataloader=None):
-    #     if val_dataloader is None:
-    #         X = {'data': self.testing_x, 'mask': np.ones_like(self.testing_x)}
-    #         y = {'data': self.testing_y}
-    #
-    #         val_ds = DataSetCatCon(X, y, self.args.cat_idx, self.args.objective,
-    #                                trading_dates=self.testing_trading_dates)
-    #         dataloader = DataLoader(val_ds, batch_size=1, num_workers=1)
-    #         print('testing_loader')
-    #     else:
-    #         print('validation_loader')
-    #         dataloader = val_dataloader
-    #
-    #     _y = []
-    #     _pred_y = []
-    #     self.model.eval()
-    #     with torch.no_grad():
-    #         for i, data in tqdm(enumerate(dataloader), total=len(dataloader)):
-    #             # print(i)
-    #             x_categ, x_cont, y_gts, cat_mask, con_mask = data
-    #             x_categ = x_categ.squeeze(0)
-    #             x_cont = x_cont.squeeze(0)
-    #             y_gts = y_gts.squeeze(0)
-    #             cat_mask = cat_mask.squeeze(0)
-    #             con_mask = con_mask.squeeze(0)
-    #             x_categ, x_cont = x_categ.to(self.device), x_cont.to(self.device)
-    #             cat_mask, con_mask = cat_mask.to(self.device), con_mask.to(self.device)
-    #
-    #             _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, cat_mask, con_mask, self.model)
-    #
-    #             reps = self.model.transformer(x_categ_enc, x_cont_enc)
-    #             y_reps = reps[:, -1, :]
-    #
-    #             y_outs = self.model.mlpfory(y_reps)
-    #             if self.args.objective == "binary":
-    #                 y_outs = np.array([int(i>0.5) for i in torch.sigmoid(y_outs).detach().cpu().numpy()])
-    #             elif self.args.objective == "classification":
-    #                 # y_outs = F.softmax(y_outs, dim=1)
-    #                 y_outs = torch.argmax(y_outs, dim=1).detach().cpu()
-    #
-    #             if self.args.objective == "regression":
-    #                 y_gts = y_gts.to(self.device)
-    #             elif self.args.objective == "classification":
-    #                 y_gts = y_gts.to(self.device).squeeze()
-    #             else:
-    #                 y_gts = y_gts.to(self.device).float()
-    #
-    #             # val_loss += criterion(y_outs, y_gts)
-    #             # val_dim += 1
-    #
-    #             _y.append(y_gts.detach().cpu())
-    #             _pred_y.append(y_outs)
-    #
-    #     return _y, _pred_y
+
+    def predict_and_anasys_result(self,data_X, _trading_dates=None,data_y = None,tag='testing',need_reload_model=True,max_day=210):
+        _data_X = {'data': data_X}
+        if data_y is None:
+            _data_y = {'data': self.testing_y}
+        else:
+            _data_y = {'data': data_y.reshape(-1, 1)}
+        _ds = DataSetCatCon(_data_X, _data_y, self.args.cat_idx, self.args.objective, trading_dates=_trading_dates)
+        dataloader = DataLoader(_ds, batch_size=1, shuffle=False, num_workers=1)
+        print(f'need_reload_model : {need_reload_model}')
+        if need_reload_model:
+            self.load_model(filename_extension=f"{self.args.model_name}_{self.args.learning_rate}_best",
+                            directory="tmp")
+            # filename='/home/liyu/git/3d-attention/use_3d_attention/output/3d-attention/h_sh_300_option/tmp/m_3d-attention_0.0001_best.pt'
+            # state_dict = torch.load(filename, map_location=torch.device(self.device))
+            # self.model.load_state_dict(state_dict)
+            self.model.to(self.device)
+        predictions = []
+        real_testing_y = []
+        mses = []
+        x_conts=[]
+        self.model.eval()
+        with torch.no_grad():
+
+            for data in tqdm(dataloader, total=len(dataloader)):
+                x_categ, x_cont, y_gts = data
+                x_categ = x_categ.squeeze(0)
+                x_cont = x_cont.squeeze(0)
+                x_conts.append(x_cont)
+                y_gts = y_gts.squeeze(0)
+
+                x_categ, x_cont = x_categ.to(self.device), x_cont.to(self.device)
+                _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, self.model)
+                reps = self.model.transformer(x_cont_enc, x_categ_enc)
+                y_reps = reps[:, 0, :]
+                y_outs = self.model.mlpfory(y_reps)
+
+                y_outs = y_outs.detach().cpu()
+
+                real_testing_y.append(y_gts)
+                predictions.append(y_outs)
+                mse = mean_squared_error(y_gts, y_outs)
+                mses.append(mse)
+        print(np.array(mses).mean())
+        self._get_score(real_testing_y, predictions)
+        x_conts = np.concatenate(x_conts)
+        print(x_conts.shape)
+        underlying_scrt_close=x_conts[:,2]
+        strike_price=x_conts[:,4]
+        moneyness = underlying_scrt_close/strike_price
+        remaining_term = np.round((x_conts[:,5] * 365))
+        testing_df=pd.DataFrame()
+        testing_df.loc[:, 'moneyness'] = moneyness
+        testing_df.loc[:, 'RemainingTerm'] = remaining_term
+        testing_df.loc[:, 'y_test_true'] = np.concatenate(real_testing_y)
+        testing_df.loc[:, 'y_test_hat'] = np.concatenate(predictions)
+        table_name = f'{self.args.dataset}_moneyness_maturity'
+        lib_util.analysis_by_moneyness_maturity(testing_df, max_day, table_name)
 
     def predict_helper(self, data_X, _trading_dates=None,data_y = None,tag='testing',need_reload_model=True):
         _data_X = {'data': data_X}
@@ -378,68 +293,3 @@ class ATTENTION_3D(BaseModelTorch):
         mae = mean_absolute_error(y_true, y_prediction)
         print(f'mse : {mse} , rmse : {rmse} , mae : {mae}')
         return mse
-
-    def attribute(self, X, y, strategy=""):
-        """ Generate feature attributions for the model input.
-            Two strategies are supported: default ("") or "diag". The default strategie takes the sum
-            over a column of the attention map, while "diag" returns only the diagonal (feature attention to itself)
-            of the attention map.
-            return array with the same shape as X.
-        """
-        global my_attention
-        # self.load_model(filename_extension="best", directory="tmp")
-
-        X = {'data': X, 'mask': np.ones_like(X)}
-        y = {'data': np.ones((X['data'].shape[0], 1))}
-
-        test_ds = DataSetCatCon(X, y, self.args.cat_idx, self.args.objective)
-        testloader = DataLoader(test_ds, batch_size=self.args.val_batch_size, shuffle=False, num_workers=4)
-
-        self.model.eval()
-        # print(self.model)
-        # Apply hook.
-        my_attention = torch.zeros(0)
-
-        def sample_attribution(layer, minput, output):
-            global my_attention
-            # print(minput)
-            """ an hook to extract the attention maps. """
-            h = layer.heads
-            q, k, v = layer.to_qkv(minput[0]).chunk(3, dim=-1)
-            q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), (q, k, v))
-            sim = einsum('b h i d, b h j d -> b h i j', q, k) * layer.scale
-            my_attention = sim.softmax(dim=-1)
-
-        # print(type(self.model.transformer.layers[0][0].fn.fn))
-        self.model.transformer.layers[0][0].fn.fn.register_forward_hook(sample_attribution)
-        attributions = []
-        with torch.no_grad():
-            print('test2')
-            for data in tqdm(testloader, total=len(testloader)):
-                x_categ, x_cont, y_gts = data
-                x_categ = x_categ.squeeze(0)
-                x_cont = x_cont.squeeze(0)
-                y_gts = y_gts.squeeze(0)
-                x_categ, x_cont = x_categ.to(self.device), x_cont.to(self.device)
-                # print(x_categ.shape, x_cont.shape)
-                _, x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, self.model)
-                reps = self.model.transformer(x_cont_enc,x_categ_enc)
-                # y_reps = reps[:, 0, :]
-                # y_outs = self.model.mlpfory(y_reps)
-                if strategy == "diag":
-                    attributions.append(my_attention.sum(dim=1)[:, 1:, 1:].diagonal(0, 1, 2))
-                else:
-                    attributions.append(my_attention.sum(dim=1)[:, 1:, 1:].sum(dim=1))
-
-        attributions = np.concatenate(attributions)
-        return attributions
-
-    @classmethod
-    def define_trial_parameters(cls, trial, args):
-        params = {
-            "dim": trial.suggest_categorical("dim", [32, 64, 128, 256]),
-            "depth": trial.suggest_categorical("depth", [1, 2, 3, 6, 12]),
-            "heads": trial.suggest_categorical("heads", [2, 4, 8]),
-            "dropout": trial.suggest_categorical("dropout", [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]),
-        }
-        return params

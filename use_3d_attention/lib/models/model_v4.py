@@ -107,32 +107,34 @@ class RowColTransformer(nn.Module):
         self.layers_mirror = nn.ModuleList([])
         self.mask_embed = nn.Embedding(nfeats, dim)
         max_length = 10
+        self.each_day_feature_num=each_day_feature_num
         self.pos_embedding = nn.Embedding(max_length, int(dim * nfeats / 5))
         self.scale = torch.sqrt(torch.FloatTensor([dim * nfeats / 5]).to(device))
         self.style = style
         self.encoder = simple_MLP([1, 100, 16])
         self.decoder = simple_MLP([16, 100, 1])
         dim= 6
+        encoder_num=38
         for _ in range(depth):
             if self.style == 'colrow':
                 self.layers.append(nn.ModuleList([
-                    PreNorm(16, Residual(Attention(16, heads=1, dropout=attn_dropout))),
-                    PreNorm(16, Residual(FeedForward(16, dropout=ff_dropout))),
-                    PreNorm(dim,
-                            Residual(Attention(dim, heads=1, dropout=attn_dropout))),
-                    PreNorm(dim, Residual(FeedForward(dim, dropout=ff_dropout))),
+                    PreNorm(encoder_num, Residual(Attention(encoder_num, heads=1, dropout=attn_dropout))),
+                    PreNorm(encoder_num, Residual(FeedForward(encoder_num, dropout=ff_dropout))),
+                    PreNorm(encoder_num,
+                            Residual(Attention(encoder_num, heads=1, dropout=attn_dropout))),
+                    PreNorm(encoder_num, Residual(FeedForward(encoder_num, dropout=ff_dropout))),
 
-                    PreNorm(dim,
-                            Residual(Attention(dim, heads=1, dropout=attn_dropout))),
-                    PreNorm(dim, Residual(FeedForward(dim, dropout=ff_dropout))),
+                    PreNorm(encoder_num,
+                            Residual(Attention(encoder_num, heads=1, dropout=attn_dropout))),
+                    PreNorm(encoder_num, Residual(FeedForward(encoder_num, dropout=ff_dropout))),
 
-                    PreNorm(5,
-                            Residual(Attention(5, heads=1, dropout=attn_dropout))),
-                    PreNorm(5, Residual(FeedForward(5, dropout=ff_dropout))),
+                    PreNorm(sequence_length,
+                            Residual(Attention(sequence_length, heads=1, dropout=attn_dropout))),
+                    PreNorm(sequence_length, Residual(FeedForward(sequence_length, dropout=ff_dropout))),
                 ]))
                 self.layers_mirror.append(nn.ModuleList([
-                    PreNorm(16, Residual(Attention(16, heads=1, dropout=attn_dropout))),
-                    PreNorm(16, Residual(FeedForward(16, dropout=ff_dropout))),
+                    PreNorm(encoder_num, Residual(Attention(encoder_num, heads=1, dropout=attn_dropout))),
+                    PreNorm(encoder_num, Residual(FeedForward(encoder_num, dropout=ff_dropout))),
                 ]))
                 self.freeze_weights(self.layers_mirror)
             else:
@@ -165,39 +167,31 @@ class RowColTransformer(nn.Module):
 
     def forward(self, x, x_cat=None):
 
-        batch, n = x.shape
-        x = rearrange(x, 'b (d f) -> b d f',d=5)
+        batch, n,_ = x.shape
+        # x = rearrange(x, 'b (d f) -> b d f',d=5)
         if self.style == 'colrow':
             for (attn1, ff1, attn2, ff2, attn3, ff3, attn4, ff4), (attn1_mirror, ff1_mirror) in zip(
                     self.layers, self.layers_mirror):
-                self.copy_datas(attn1, attn1_mirror)
-                self.copy_datas(ff1, ff1_mirror)
-                x = rearrange(x, 'b d f -> b (d f) 1')
-                x_enc = self.encoder(x)
-                x_cont_enc_0 = attn1(x_enc[:,0:6,:])
-                x1_0 = ff1(x_cont_enc_0)
-                x1 = []
-                x1.append(x1_0)
-                for j in range(1, 5):
-                    x_enc_j = attn1_mirror(x_enc[:, j * 6:(j + 1) * 6, :])
-                    x_enc_j = ff1_mirror(x_enc_j)
-                    x1.append(x_enc_j)
-                x1 = torch.cat(x1, dim=1)
-                x1 = self.decoder(x1)
-                x1 = rearrange(x1.squeeze(2), 'b (d f) -> b d f',d=5)
-
-                x2 = x1.permute(1,0,2)
+                x1 = rearrange(x, 'b (s d) f -> (b s) d f',s=5)
+                x1 = attn1(x1)
+                x1 = ff1(x1)
+                x2 = rearrange(x1, '(b s) d f -> b s d f',s=5)
+                x2 = x2.permute(1, 2,0, 3)
+                x2 = rearrange(x2, 's d b f -> (s d) b f')
                 x2 = attn2(x2)
                 x2 = ff2(x2)
+                x2 = rearrange(x2, '(s d) b f -> s d b f',s=5)
 
-                x3 = x2.permute(1,0,2)
+                x3 = x2.permute(2, 1,0, 3)
+                x3 = rearrange(x3, 'b d s f -> (b d) s f')
                 x3 = attn3(x3)
                 x3 = ff3(x3)
+                x3 = rearrange(x3, '(b d) s f -> b (d s) f',b=batch)
+                # x4 = x3.permute(0,2,1)
+                # x4 = attn4(x4)
+                # x4 = ff4(x4).permute(0,2,1)
 
-                x4 = x3.permute(0,2,1)
-                x4 = attn4(x4)
-                x4 = ff4(x4)
-                x = 0.0 * x1 + 0.0 * x2.permute(1, 0,2) + 0.0 * x3+ 1.0 * x4.permute(0,2,1)
+                x = x3
 
         else:
             for attn1, ff1 in self.layers:

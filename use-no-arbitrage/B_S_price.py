@@ -1,7 +1,7 @@
 import argparse
 
 import pandas as pd
-
+import numpy as np
 from library import util
 
 
@@ -22,7 +22,7 @@ def create_table(table_name,max_day=210):
     strike = testing_df['StrikePrice'].to_numpy()
     df_year = spot / strike
     testing_df.loc[:, 'moneyness'] = df_year
-    testing_df.loc[:, 'RemainingTerm'] = testing_df['RemainingTerm'] * 365
+    testing_df.loc[:, 'RemainingTerm'] = np.round((testing_df['RemainingTerm'] * 365).to_numpy())
     result_df = testing_df[['TradingDate', 'moneyness', 'RemainingTerm', 'y_test_true', 'y_test_hat']]
     util.analysis_by_moneyness_maturity(result_df,max_day, table_name)
 

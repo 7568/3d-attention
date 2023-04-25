@@ -1,2 +1,1 @@
-from lib.models.pretrainmodel import SAINT
-from lib.models.pretrainmodel_vision import SAINT_vision
+from lib.models.pretrainmodel import ATTENTION_3D

@@ -552,31 +552,33 @@ def depart_data(ord):
     sh_zh_50_2 = df[df['UnderlyingSecurityID'] == 204000000015]
     h_sh_300_2 = df[df['UnderlyingSecurityID'] == 204000000140]
 
-    if os.path.exists(f'{DATA_HOME_PATH}/sh_zh_50'):
-        shutil.rmtree(f'{DATA_HOME_PATH}/sh_zh_50')
-    if os.path.exists(f'{DATA_HOME_PATH}/h_sh_300'):
-        shutil.rmtree(f'{DATA_HOME_PATH}/h_sh_300')
+    # h_sh_300_folder_name='h_sh_300_option'
+    # sh_zh_folder_name='sh_zh_50_option'
+    if os.path.exists(f'{DATA_HOME_PATH}/sh_zh_50_option'):
+        shutil.rmtree(f'{DATA_HOME_PATH}/sh_zh_50_option')
+    if os.path.exists(f'{DATA_HOME_PATH}/h_sh_300_option'):
+        shutil.rmtree(f'{DATA_HOME_PATH}/h_sh_300_option')
 
-    os.mkdir(f'{DATA_HOME_PATH}/sh_zh_50')
-    os.mkdir(f'{DATA_HOME_PATH}/h_sh_300')
+    os.mkdir(f'{DATA_HOME_PATH}/sh_zh_50_option')
+    os.mkdir(f'{DATA_HOME_PATH}/h_sh_300_option')
 
-    remove_file_if_exists(f'{DATA_HOME_PATH}/sh_zh_50/IO_PRICINGPARAMETER_{ord}.csv')
-    remove_file_if_exists(f'{DATA_HOME_PATH}/h_sh_300/IO_PRICINGPARAMETER_{ord}.csv')
+    remove_file_if_exists(f'{DATA_HOME_PATH}/sh_zh_50_option/IO_PRICINGPARAMETER_{ord}.csv')
+    remove_file_if_exists(f'{DATA_HOME_PATH}/h_sh_300_option/IO_PRICINGPARAMETER_{ord}.csv')
 
-    remove_file_if_exists(f'{DATA_HOME_PATH}/sh_zh_50/IO_QUOTATIONBAS_{ord}.csv')
-    remove_file_if_exists(f'{DATA_HOME_PATH}/h_sh_300/IO_QUOTATIONBAS_{ord}.csv')
+    remove_file_if_exists(f'{DATA_HOME_PATH}/sh_zh_50_option/IO_QUOTATIONBAS_{ord}.csv')
+    remove_file_if_exists(f'{DATA_HOME_PATH}/h_sh_300_option/IO_QUOTATIONBAS_{ord}.csv')
 
-    remove_file_if_exists(f'{DATA_HOME_PATH}/sh_zh_50/IO_QUOTATIONDER_{ord}.csv')
-    remove_file_if_exists(f'{DATA_HOME_PATH}/h_sh_300/IO_QUOTATIONDER_{ord}.csv')
+    remove_file_if_exists(f'{DATA_HOME_PATH}/sh_zh_50_option/IO_QUOTATIONDER_{ord}.csv')
+    remove_file_if_exists(f'{DATA_HOME_PATH}/h_sh_300_option/IO_QUOTATIONDER_{ord}.csv')
 
-    sh_zh_50_0.to_csv(f'{DATA_HOME_PATH}/sh_zh_50/IO_PRICINGPARAMETER_{ord}.csv', index=False)
-    h_sh_300_0.to_csv(f'{DATA_HOME_PATH}/h_sh_300/IO_PRICINGPARAMETER_{ord}.csv', index=False)
+    sh_zh_50_0.to_csv(f'{DATA_HOME_PATH}/sh_zh_50_option/IO_PRICINGPARAMETER_{ord}.csv', index=False)
+    h_sh_300_0.to_csv(f'{DATA_HOME_PATH}/h_sh_300_option/IO_PRICINGPARAMETER_{ord}.csv', index=False)
 
-    sh_zh_50_1.to_csv(f'{DATA_HOME_PATH}/sh_zh_50/IO_QUOTATIONBAS_{ord}.csv', index=False)
-    h_sh_300_1.to_csv(f'{DATA_HOME_PATH}/h_sh_300/IO_QUOTATIONBAS_{ord}.csv', index=False)
+    sh_zh_50_1.to_csv(f'{DATA_HOME_PATH}/sh_zh_50_option/IO_QUOTATIONBAS_{ord}.csv', index=False)
+    h_sh_300_1.to_csv(f'{DATA_HOME_PATH}/h_sh_300_option/IO_QUOTATIONBAS_{ord}.csv', index=False)
 
-    sh_zh_50_2.to_csv(f'{DATA_HOME_PATH}/sh_zh_50/IO_QUOTATIONDER_{ord}.csv', index=False)
-    h_sh_300_2.to_csv(f'{DATA_HOME_PATH}/h_sh_300/IO_QUOTATIONDER_{ord}.csv', index=False)
+    sh_zh_50_2.to_csv(f'{DATA_HOME_PATH}/sh_zh_50_option/IO_QUOTATIONDER_{ord}.csv', index=False)
+    h_sh_300_2.to_csv(f'{DATA_HOME_PATH}/h_sh_300_option/IO_QUOTATIONDER_{ord}.csv', index=False)
 
 
 # def remove_no_volume_data_2():
@@ -1160,7 +1162,7 @@ def split_c_p_save():
 # DATA_HOME_PATH = '/home/liyu/data/hedging-option/20190701-20221124'
 
 DATA_HOME_PATH = f'/home/liyu/data/hedging-option/20170101-20230101/index-option'
-OPTION_SYMBOL = 'h_sh_300'
+OPTION_SYMBOL = 'h_sh_300_option'
 # OPTION_SYMBOL = 'ETF50'
 
 if __name__ == '__main__':

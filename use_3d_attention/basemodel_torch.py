@@ -88,33 +88,7 @@ class BaseModelTorch(BaseModel):
                 loss.backward()
                 optimizer.step()
 
-            # Early Stopping
-            # val_loss = 0.0
-            # val_dim = 0
-            # for val_i, (batch_val_X, batch_val_y) in tqdm(enumerate(val_loader),total=len(val_loader)):
-            #     batch_val_y = batch_val_y.to(self.device)
-            #
-            #     out = self.model(batch_val_X.to(self.device))
-            #
-            #     if self.args.objective == "regression" or self.args.objective == "binary":
-            #         out = out.squeeze()
-            #
-            #     val_loss += loss_func(out, batch_val_y)
-            #     val_dim += 1
-            #
-            # val_loss /= val_dim
-            # val_loss_history.append(val_loss.item())
-            #
-            # print("Epoch %d, Val Loss: %.5f" % (epoch, val_loss))
-            #
-            # if val_loss < min_val_loss:
-            #     min_val_loss = val_loss
-            #     min_val_loss_idx = epoch
-            #
-            #     # Save the currently best model
-            #     self.save_model(filename_extension="best", directory="tmp")
 
-            # Early Stopping
             sc = get_scorer(self.args)
             self.predict(X_val)
             f1_score = sc.eval(y_val, self.predictions, self.prediction_probabilities)['F1 score']

@@ -194,10 +194,8 @@ class RowColTransformer(nn.Module):
             # print(f'x_cont is {x_cat}')
             pass
         batch, n, _ = x.shape
-        for (attn1, ff1, attn2, ff2, attn3, ff3, attn4, ff4), (attn1_mirror, ff1_mirror, attn2_mirror, ff2_mirror,ff3_mirror) in zip(
-                self.layers, self.layers_mirror):
+        for attn1, ff1, attn2, ff2, attn3, ff3, attn4, ff4 in self.layers:
 
-            i = 0
             _x1 = attn1(x)
             x1 = ff1(_x1)
 
@@ -209,11 +207,11 @@ class RowColTransformer(nn.Module):
             x3 = x2.permute(1,0,2)
 
 
-            pos = torch.sin(torch.arange(self.sequence_length, 0, -1).unsqueeze(1).repeat(1, n//self.sequence_length*self.encode_length) * 0.1).to(self.device)
+            pos = torch.sin(torch.arange(self.sequence_length, 0, -1).unsqueeze(1).repeat(1, n//self.sequence_length*self.encode_length) * 0.01).to(self.device)
             pos = pos.unsqueeze(0).repeat(batch,1,1)
             # pos = torch.arange(self.sequence_length, 0, -1).unsqueeze(0).repeat(batch, 1).to(self.device)
             # x3 = x3 * self.scale + self.pos_embedding(pos)
-            x3 = x3 * self.scale + pos
+            x3 = x3 + pos
             x3 = attn3(x3)
             x3 = ff3(x3)
             x4 = rearrange(x3, 'b s (f d) -> b f (s d)', f=self.each_day_feature_num)
