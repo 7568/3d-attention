@@ -36,7 +36,7 @@ if __name__ == '__main__':
     # NORMAL_TYPE = 'min_max_norm'
 
 
-    OPTION_SYMBOL = 'index-option/h_sh_300'
+    OPTION_SYMBOL = 'index-option/h_sh_300_option'
     DATA_HOME_PATH = HOME_PATH + "/" + OPTION_SYMBOL + "/"
     # reformatt_data()
 

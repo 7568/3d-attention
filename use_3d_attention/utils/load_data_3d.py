@@ -57,15 +57,14 @@ def load_3_d_data(args):
                      'RemainingTerm']
     cat_features=[]
     if args.use_much_features:
-        less_features = ['ClosePrice','TradingDate','TheoreticalPrice', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho',
+        less_features = ['ClosePrice','TradingDate', 'Delta', 'UnderlyingScrtClose', 'ImpliedVolatility', 'StrikePrice',
+                         'RemainingTerm','Gamma', 'Vega', 'Theta', 'Rho',
                          'OpenPrice', 'HighPrice', 'LowPrice', 'SettlePrice', 'Change1', 'Change2', 'Volume',
                          'Position', 'Amount', 'PositionChange',
                          'rate_1_formatted', 'rate_2_formatted', 'rate_3_formatted', 'rate_7_formatted',
                          'rate_14_formatted', 'rate_21_formatted',
                          'AvgPrice', 'ClosePriceChangeRatio', 'SettlePriceChangeRatio', 'Amplitude', 'LimitUp',
-                         'LimitDown',
-                         'MaintainingMargin', 'ChangeRatio', 'UnderlyingScrtClose', 'ImpliedVolatility',
-                         'StrikePrice', 'RemainingTerm','MainSign']
+                         'LimitDown', 'MaintainingMargin', 'ChangeRatio','MainSign']
         cat_features = ['MainSign']
         for i in range(1, 5):
             cat_features.append(f'MainSign_{i}')

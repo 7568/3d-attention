@@ -16,37 +16,9 @@ from tqdm import tqdm
 from library import util as lib_util
 from data_openml import DataSetCatCon
 from use_lstm import util
-
+from lstm_train import LSTM
 torch.manual_seed(100)
 
-
-def train_test(df, test_periods):
-    train = df[:-test_periods].values
-    test = df[-test_periods:].values
-    return train, test
-
-
-class LSTM(nn.Module):
-    """
-    input_size - will be 1 in this example since we have only 1 predictor (a sequence of previous values)
-    hidden_size - Can be chosen to dictate how much hidden "long term memory" the network will have
-    output_size - This will be equal to the prediciton_periods input to get_x_y_pairs
-    """
-
-    def __init__(self, input_size, hidden_size, output_size, num_layers=1):
-        super(LSTM, self).__init__()
-        self.hidden_size = hidden_size
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers=num_layers, batch_first=True)
-
-        self.linear = nn.Sequential(nn.Linear(hidden_size, output_size))
-
-    def forward(self, x):
-        lstm_out, _ = self.lstm(x)
-        # print(hn.shape)
-
-        predictions = self.linear(lstm_out[:, -1, :])
-
-        return predictions
 
 
 def get_scheduler(epochs, optimizer):
@@ -68,7 +40,7 @@ def predict(use_much_features,dataset_name,max_day):
     test_periods = 1
     model = LSTM(input_size=feature_num, hidden_size=opt.hidden_size, output_size=test_periods,
                  num_layers=opt.num_layers).to(device)
-    checkpoint = torch.load( f'lstm_best_model_{dataset_name}')
+    checkpoint = torch.load( f'lstm_best_model_{dataset_name}_{use_much_features}')
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
     with torch.no_grad():
@@ -93,7 +65,7 @@ def get_result( testing_df,y_test_true, y_test_hat,dataset_name,testing_df_tradi
     testing_df.loc[:, 'moneyness'] = df_year
     testing_df.loc[:, 'RemainingTerm'] = np.round((testing_df['RemainingTerm'] * 365).to_numpy())
     result_df = testing_df[['TradingDate', 'moneyness', 'RemainingTerm', 'y_test_true', 'y_test_hat']]
-    table_name = f'{dataset_name}_moneyness_maturity'
+    table_name = f'{dataset_name}_{use_much_features}_moneyness_maturity'
     lib_util.analysis_by_moneyness_maturity(result_df, max_day, table_name)
 
 def load_model(use_much_features,dataset_name):
@@ -118,7 +90,7 @@ def init_parser():
     parser.add_argument('--log_to_file', action='store_true')
     parser.add_argument('--epochs', default=1000, type=int)
     parser.add_argument('--batchsize', default=128, type=int)
-    parser.add_argument('--hidden_size', default=64, type=int)  # The number of features in the hidden state h
+    parser.add_argument('--hidden_size', default=512, type=int)  # The number of features in the hidden state h
     parser.add_argument('--num_layers', default=5, type=int)
     parser.add_argument('--lr', default=0.001, type=float)
     return parser.parse_args()
@@ -130,10 +102,10 @@ if __name__ == '__main__':
     opt = init_parser()
     if opt.log_to_file:
         logger = util.init_log('lstm')
-    use_much_features = False
+    use_much_features = True
     predict(use_much_features,'h_sh_300',360)
-    PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
-    predict(use_much_features,'ETF50',210)
+    # PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
+    # predict(use_much_features,'ETF50',210)
 
 """
 h_sh_300

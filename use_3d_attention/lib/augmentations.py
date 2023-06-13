@@ -3,26 +3,26 @@ import numpy as np
 
 
 def embed_data_mask(x_categ, x_cont,  model):
-    # return x_categ, x_categ, x_cont
-    device = x_cont.device
-    x_categ_enc = None
-    if x_categ.shape[1]>0:
-        x_categ = x_categ + model.categories_offset.type_as(x_categ)
-        x_categ_enc = model.embeds(x_categ)
-
-    n1, n2 = x_cont.shape
-    _, n3 = x_categ.shape
-    if model.cont_embeddings == 'MLP':
-        x_cont_enc = torch.empty(n1, n2, model.dim).to(device)
-        for i in range(model.num_continuous):
-            x_cont_enc[:, i, :] = model.simple_MLP[i](x_cont[:, i])
-    else:
-        print('This case should not work!')
-        raise Exception('This case should not work!')
-
-    x_cont_enc = x_cont_enc.to(device)
-
-    return x_categ, x_categ_enc, x_cont_enc
+    return x_categ, x_categ, x_cont
+    # device = x_cont.device
+    # x_categ_enc = None
+    # if x_categ.shape[1]>0:
+    #     x_categ = x_categ + model.categories_offset.type_as(x_categ)
+    #     x_categ_enc = model.embeds(x_categ)
+    #
+    # n1, n2 = x_cont.shape
+    # _, n3 = x_categ.shape
+    # if model.cont_embeddings == 'MLP':
+    #     x_cont_enc = torch.empty(n1, n2, model.dim).to(device)
+    #     for i in range(model.num_continuous):
+    #         x_cont_enc[:, i, :] = model.simple_MLP[i](x_cont[:, i])
+    # else:
+    #     print('This case should not work!')
+    #     raise Exception('This case should not work!')
+    #
+    # x_cont_enc = x_cont_enc.to(device)
+    #
+    # return x_categ, x_categ_enc, x_cont_enc
 
 
 def mixup_data(x1, x2, lam=1.0, y=None, use_cuda=True):

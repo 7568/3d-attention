@@ -45,7 +45,8 @@ class DataSetCatCon(Dataset):
             cat_cols = []
 
         self.X1 = X[:, cat_cols].copy().astype(np.int64)  # categorical columns
-        self.X2 = X[:, con_cols].copy().astype(np.float32)  # numerical columns
+        # self.X2 = X[:, con_cols].copy().astype(np.float32)  # numerical columns
+        self.X2 = X[:, con_cols[::-1]].copy().astype(np.float32)  # numerical columns
 
         if task == 'regression':
             self.y = Y['data'].astype(np.float32)

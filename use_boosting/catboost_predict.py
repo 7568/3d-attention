@@ -24,7 +24,7 @@ def predict(testing_x, testing_y,dataset_name):
     test_pool = Pool(testing_x, cat_features=cat_features)
 
     model = CatBoostRegressor()
-    model.load_model(f"catBoostRegressor_{dataset_name}")
+    model.load_model(f"catBoostRegressor_{dataset_name}_{use_much_features}")
     from_file = model
     # make the prediction using the resulting model
 
@@ -48,18 +48,18 @@ def get_result( testing_x, testing_y,dataset_name,testing_df_tradingDate,max_day
     testing_df.loc[:, 'moneyness'] = df_year
     testing_df.loc[:, 'RemainingTerm'] = np.round((testing_df['RemainingTerm'] * 365).to_numpy())
     result_df = testing_df[['TradingDate', 'moneyness', 'RemainingTerm', 'y_test_true', 'y_test_hat']]
-    table_name = f'{dataset_name}_moneyness_maturity'
+    table_name = f'{dataset_name}_{use_much_features}_moneyness_maturity'
     util.analysis_by_moneyness_maturity(result_df, max_day, table_name)
 
 # PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
-PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300/'
+PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300_option/'
 if __name__ == '__main__':
     opt = init_parser()
     if opt.log_to_file:
         logger = util.init_log('catboost_delta_hedging_v2')
     # NORMAL_TYPE = 'min_max_norm'
     NORMAL_TYPE = 'mean_norm'
-    use_much_features = False
+    use_much_features = True
     max_depth = 8
     if use_much_features:
         max_depth = 12

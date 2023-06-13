@@ -1,25 +1,25 @@
 # General parameters
 
-dataset: ETF50-option
-prepare_home_path: '/home/liyu/data/hedging-option/20170101-20230101/'
+#dataset: ETF50-option
+#prepare_home_path: '/home/liyu/data/hedging-option/20170101-20230101/'
 
-#dataset: h_sh_300_option
-#prepare_home_path: '/home/liyu/data/hedging-option/20170101-20230101/index-option/'
+dataset: h_sh_300_option
+prepare_home_path: '/home/liyu/data/hedging-option/20170101-20230101/index-option/'
 
 objective: regression  # Don't change binary_f1 binary
 # 如果是 binary或者 regression 那么num_classes为1
 
-learning_rate: 0.0001
+learning_rate: 0.003
 
 
 normal_type: 'mean_norm'
-use_much_features: False
+use_much_features: True
 
 
 # optimize_hyperparameters: True
 use_gpu: True
 # use one GPU parameters
-gpu_index: 5
+gpu_index: 1
 # use GPU data_parallel parameters
 gpu_ids: [ 0, 1, 2, 3, 4, 5, 6, 7]
 
@@ -43,11 +43,11 @@ logging_period: 20
 
 # About the data
 num_classes: 1  # for classification
-#num_features: 180
-#cat_idx: [ 35, 71, 107, 143, 179]
+num_features: 175
+#cat_idx: [ 34, 69, 104, 139, 174]
 #cat_dims: [ 2, 2, 2, 2, 2 ]
 
-num_features: 30
+#num_features: 30
 cat_idx: [ ]
 # cat_dims: will be automatically set.
 #cat_dims: [ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ]

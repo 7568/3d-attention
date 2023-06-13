@@ -37,13 +37,14 @@ class LSTM(nn.Module):
         self.hidden_size = hidden_size
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers=num_layers, batch_first=True)
 
-        self.linear = nn.Sequential(nn.Linear(hidden_size, output_size))
+        self.linear = nn.Sequential(nn.Linear(hidden_size+input_size, output_size))
 
     def forward(self, x):
         lstm_out, _ = self.lstm(x)
         # print(hn.shape)
+        # torch.cat((x,lstm_out),2)
 
-        predictions = self.linear(lstm_out[:, -1, :])
+        predictions = self.linear(torch.cat((x,lstm_out),2)[:, -1, :])
 
         return predictions
 
@@ -116,14 +117,15 @@ def train_model(use_much_features,dataset_name):
         if rmse < min_validation_loss:
             min_validation_loss = rmse
             no_change_times = 0
+            torch.save({
+                'model_state_dict': model.state_dict()
+            }, f'lstm_best_model_{dataset_name}_{use_much_features}')
         if no_change_times > 19:
             break
         # predictions = model(train_scaled.to(device), None, device)
     rmse, mae = get_test_result(model, testingloader, device)
     print(f'testing rmse : {rmse} , mae : {mae}')
-    torch.save({
-        'model_state_dict': model.state_dict()
-    }, f'lstm_best_model_{dataset_name}')
+
 
 
 def init_parser():
@@ -131,7 +133,7 @@ def init_parser():
     parser.add_argument('--log_to_file', action='store_true')
     parser.add_argument('--epochs', default=1000, type=int)
     parser.add_argument('--batchsize', default=128, type=int)
-    parser.add_argument('--hidden_size', default=64, type=int)  # The number of features in the hidden state h
+    parser.add_argument('--hidden_size', default=512, type=int)  # The number of features in the hidden state h
     parser.add_argument('--num_layers', default=5, type=int)
     parser.add_argument('--lr', default=0.001, type=float)
     return parser.parse_args()
@@ -143,16 +145,16 @@ if __name__ == '__main__':
     opt = init_parser()
     if opt.log_to_file:
         logger = util.init_log('lstm')
-    use_much_features = False
+    use_much_features = True
     train_model(use_much_features,'h_sh_300')
-    PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
-    train_model(use_much_features,'ETF50')
+    # PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
+    # train_model(use_much_features,'ETF50')
 
 """
 h_sh_300
 use_much_features = True
 validation rmse : 0.004036936887173826 , mae : 0.002130362190093025
-testing rmse : 0.004675756610792724 , mae : 0.002104783016949187
+testing rmse : 0.002060078733090324 , mae : 0.001335953877109254
 
 use_much_features = False
 validation rmse : 0.03754063364282469 , mae : 0.017040287596522707
@@ -168,4 +170,12 @@ testing rmse : 0.009738441974197045 , mae : 0.006426467528721215
 use_much_features = False
 validation rmse : 0.026531293950002928 , mae : 0.017034916364539125
 testing rmse : 0.026283616057762242 , mae : 0.01760636860360867
+"""
+
+
+"""
+num_layers=8
+testing rmse : 0.006579037795883732 , mae : 0.0029451332479397564
+num_layers=5
+testing rmse : 0.004672807191343961 , mae : 0.002356162205860774
 """

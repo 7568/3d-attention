@@ -2,15 +2,15 @@ parameters: {
   h_sh_300_option: {
     3d-attention: {
       dim: 16,
-      depth: 6,
-      dropout: 0.0001
+      depth: 5,
+      dropout: 0.01
     }
   },
   ETF50-option: {
     3d-attention: {
       dim: 38,
-      depth: 4,
-      dropout: 0.01
+      depth: 8,
+      dropout: 0.0001
     }
   }
 }

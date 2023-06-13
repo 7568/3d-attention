@@ -73,7 +73,7 @@ def load_sequence_data(use_much_features,prepare_home_path,normal_type,opt):
     less_features = ['ClosePrice', 'rate_7_formatted', 'UnderlyingScrtClose', 'ImpliedVolatility', 'StrikePrice',
                      'RemainingTerm']
     if use_much_features:
-        less_features = ['ClosePrice','TheoreticalPrice', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho',
+        less_features = ['ClosePrice', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho',
                          'OpenPrice', 'HighPrice', 'LowPrice', 'SettlePrice', 'Change1', 'Change2', 'Volume',
                          'Position', 'Amount', 'PositionChange', 'MainSign',
                          'rate_1_formatted', 'rate_2_formatted', 'rate_3_formatted', 'rate_7_formatted',

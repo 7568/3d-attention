@@ -52,13 +52,13 @@ class GEGLU(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, dim, mult=4, dropout=0.):
+    def __init__(self, dim, mult=4.0, dropout=0.):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(dim, dim * mult * 2),
+            nn.Linear(dim, int(dim * mult * 2)),
             GEGLU(),
             nn.Dropout(dropout),
-            nn.Linear(dim * mult, dim)
+            nn.Linear(int(dim * mult), dim)
         )
 
     def forward(self, x, **kwargs):
@@ -108,19 +108,24 @@ class RowColTransformer(nn.Module):
         self.mask_embed = nn.Embedding(nfeats, dim)
         max_length = 10
         self.each_day_feature_num = each_day_feature_num
+        self.each_day_cat_feature_num = each_day_cat_feature_num
         self.pos_embedding = nn.Embedding(max_length, int(dim * nfeats / 5))
         self.scale = torch.sqrt(torch.FloatTensor([dim * nfeats / 5]).to(device))
         self.style = style
         self.sequence_length = sequence_length
         # dim= 6
         encoder_num = dim
-
+        self.dim = dim
+        self.simple_MLP = nn.ModuleList([simple_MLP([1, self.dim*2, self.dim]) for _ in range(self.each_day_feature_num)])
+        self.simple_MLP_2 = nn.ModuleList([simple_MLP([self.dim, self.dim, 1]) for _ in range(self.each_day_feature_num)])
         for _ in range(depth):
             if self.style == 'colrow':
                 self.layers.append(nn.ModuleList([
                     nn.ModuleList(
-                        [PreNorm(encoder_num, Residual(Attention(encoder_num, heads=1, dropout=attn_dropout))),
-                         PreNorm(encoder_num, Residual(FeedForward(encoder_num, dropout=ff_dropout))),
+                        [PreNorm(35, Residual(Attention(35, heads=1, dropout=attn_dropout))),
+                         PreNorm(35, Residual(FeedForward(35, dropout=ff_dropout))),
+                         PreNorm(35, Residual(Attention(35, heads=1, dropout=attn_dropout))),
+                         PreNorm(35, Residual(FeedForward(35, dropout=ff_dropout))),
                          PreNorm(encoder_num, Residual(Attention(encoder_num, heads=1, dropout=attn_dropout))),
                          PreNorm(encoder_num, Residual(FeedForward(encoder_num, dropout=ff_dropout))),
                          PreNorm(encoder_num, Residual(Attention(encoder_num, heads=1, dropout=attn_dropout))),
@@ -130,24 +135,29 @@ class RowColTransformer(nn.Module):
                          PreNorm(encoder_num, Residual(Attention(encoder_num, heads=1, dropout=attn_dropout))),
                          PreNorm(encoder_num, Residual(FeedForward(encoder_num, dropout=ff_dropout))),
                          PreNorm(encoder_num, Residual(Attention(encoder_num, heads=1, dropout=attn_dropout))),
-                         PreNorm(encoder_num, Residual(FeedForward(encoder_num, dropout=ff_dropout))),
-                         PreNorm(encoder_num, Residual(Attention(encoder_num, heads=1, dropout=attn_dropout))),
-                         PreNorm(encoder_num, Residual(FeedForward(encoder_num, dropout=ff_dropout))),
-                         PreNorm(encoder_num, Residual(Attention(encoder_num, heads=1, dropout=attn_dropout))),
-                         PreNorm(encoder_num, Residual(FeedForward(encoder_num, dropout=ff_dropout))),
-                         PreNorm(encoder_num, Residual(Attention(encoder_num, heads=1, dropout=attn_dropout))),
-                         PreNorm(encoder_num, Residual(FeedForward(encoder_num, dropout=ff_dropout)))]),
+                         PreNorm(encoder_num, Residual(FeedForward(encoder_num, mult=1, dropout=ff_dropout)))]),
 
-                    nn.ModuleList([PreNorm(encoder_num * each_day_feature_num,Residual(Attention(encoder_num * each_day_feature_num, heads=each_day_feature_num,dropout=attn_dropout))),
-                                   PreNorm(encoder_num * each_day_feature_num,Residual(FeedForward(encoder_num * each_day_feature_num, dropout=ff_dropout))),
-                                   PreNorm(encoder_num * each_day_feature_num,Residual(Attention(encoder_num * each_day_feature_num, heads=each_day_feature_num,dropout=attn_dropout))),
-                                   PreNorm(encoder_num * each_day_feature_num,Residual(FeedForward(encoder_num * each_day_feature_num, dropout=ff_dropout))),
+                    nn.ModuleList([PreNorm(encoder_num * each_day_feature_num, Residual(
+                        Attention(encoder_num * each_day_feature_num, heads=each_day_feature_num,
+                                  dropout=attn_dropout))),
+                                   PreNorm(encoder_num * each_day_feature_num, Residual(
+                                       FeedForward(encoder_num * each_day_feature_num, dropout=ff_dropout))),
+                                   PreNorm(encoder_num * each_day_feature_num, Residual(
+                                       Attention(encoder_num * each_day_feature_num, heads=each_day_feature_num,
+                                                 dropout=attn_dropout))),
+                                   PreNorm(encoder_num * each_day_feature_num, Residual(
+                                       FeedForward(encoder_num * each_day_feature_num, dropout=ff_dropout))),
                                    ]),
 
-                    nn.ModuleList([PreNorm(encoder_num * sequence_length,Residual(Attention(encoder_num * sequence_length, heads=sequence_length,dropout=attn_dropout))),
-                                   PreNorm(encoder_num * sequence_length,Residual(FeedForward(encoder_num * sequence_length, dropout=ff_dropout))),
-                                   PreNorm(encoder_num * sequence_length,Residual(Attention(encoder_num * sequence_length, heads=sequence_length,dropout=attn_dropout))),
-                                   PreNorm(encoder_num * sequence_length,Residual(FeedForward(encoder_num * sequence_length, dropout=ff_dropout)))
+                    nn.ModuleList([PreNorm(encoder_num * sequence_length, Residual(
+                        Attention(encoder_num * sequence_length, heads=sequence_length, dropout=attn_dropout))),
+                                   PreNorm(encoder_num * sequence_length,
+                                           Residual(FeedForward(encoder_num * sequence_length, dropout=ff_dropout))),
+                                   PreNorm(encoder_num * sequence_length, Residual(
+                                       Attention(encoder_num * sequence_length, heads=sequence_length,
+                                                 dropout=attn_dropout))),
+                                   PreNorm(encoder_num * sequence_length,
+                                           Residual(FeedForward(encoder_num * sequence_length, dropout=ff_dropout)))
                                    ])
 
                 ]))
@@ -161,75 +171,63 @@ class RowColTransformer(nn.Module):
 
     def forward(self, x, x_cat=None):
         if x_cat is not None:
-            batch, n, _ = x.shape
-            batch_c, n_c, _ = x_cat.shape
+            batch, n = x.shape
+            batch_c, n_c = x_cat.shape
             x_new = []
             for i in range(self.sequence_length):
-                x_new.append(torch.cat((x[:, i * (n // self.sequence_length):(i + 1) * (n // self.sequence_length), :],
+                x_new.append(torch.cat((x[:, i * (n // self.sequence_length):(i + 1) * (n // self.sequence_length)],
                                         x_cat[:,
-                                        i * (n_c // self.sequence_length):(i + 1) * (n_c // self.sequence_length), :]),
+                                        i * (n_c // self.sequence_length):(i + 1) * (n_c // self.sequence_length)]),
                                        dim=1))
             x = torch.cat(x_new, dim=1)
-        batch, n, f = x.shape
-        # x = rearrange(x, 'b (d f) -> b d f',d=5)
+
+        x = rearrange(x, 'b (d f) -> b d f',d=5)
+        batch, n,f = x.shape
         if self.style == 'colrow':
             for attn1_ff1s, attn2_ff2s, attn3_ff3s in self.layers:
                 # x : 21 (5 6) 38
                 x1_1 = attn1_ff1s[0](x)
-                x_1 = attn1_ff1s[1](x1_1)
-                x1_1 = rearrange(x, 'b (s d) f -> (s d) b f', s=5)  # 21 (5 6) 38 -> (5 6) 21 38
-                x1_1 = attn1_ff1s[2](x1_1)
-                x1_1 = attn1_ff1s[3](x1_1)
-                x_2 = rearrange(x1_1, '(s d) b f -> b (s d) f', s=5)
-                x1_2 = rearrange(x, 'b (s d) f -> (b s) d f', s=5)  # (5 6) 21 38 -> (21 5) 6 38
-                x1_2 = attn1_ff1s[4](x1_2)
-                x1_2 = attn1_ff1s[5](x1_2)
-                x_3 = rearrange(x1_2, '(b s) d f -> b (s d) f', s=5)
-                x1_3 = rearrange(x, 'b (s d) f -> d (b s) f', s=5)  # (21 5) 6 38 -> 6 (21 5) 38
-                x1_3 = attn1_ff1s[6](x1_3)
-                x1_3 = attn1_ff1s[7](x1_3)
-                x_4 = rearrange(x1_3, 'd (b s) f -> b (s d) f', s=5)
-                x1_4 = rearrange(x, 'b (s d) f -> (b d) s f', s=5)  # 6 (21 5) 38 -> (21 6) 5 38
-                x1_4 = attn1_ff1s[8](x1_4)
-                x1_4 = attn1_ff1s[9](x1_4)
-                x_5 = rearrange(x1_4, '(b d) s f -> b (s d) f', b=batch)
-                x1_5 = rearrange(x, 'b (s d) f -> s (b d) f', s=5)  # (21 6) 5 38 -> 5 (21 6) 38
-                x1_5 = attn1_ff1s[10](x1_5)
-                x1_5 = attn1_ff1s[11](x1_5)
-                x_6 = rearrange(x1_5, 's (b d) f -> b (s d) f', b=batch)
-                # x1 /= 6.0
-                x_ = torch.cat((x_1, x_2,x_3,x_4,x_5,x_6), dim=1)
-                x_ = attn1_ff1s[12](x_)
-                x_ = attn1_ff1s[13](x_)
-                x1 = x_[:, 0:x_1.shape[1], :]
+                x1_2 = attn1_ff1s[1](x1_1)
+                x1_3 = x1_2.permute(1, 0, 2)
+                x2_1 = attn1_ff1s[2](x1_3)
+                x2_2 = attn1_ff1s[3](x2_1)
+                x2_3 = x2_2.permute(1, 0, 2)
+                x2_3 = rearrange(x2_3, 'b d f -> (b d) f')
+                n1, n2 = x2_3.shape
 
-                x2_1 = rearrange(x1, 'b (s d) f -> s b (d f)', s=5)  # (21 5) 6 38 -> 5 21 (6 38)
-                x2_1 = attn2_ff2s[0](x2_1)
-                x2_1 = attn2_ff2s[1](x2_1)
-                x_7 = rearrange(x2_1, 's b (d f) -> b (s d) f', f=f)
-                x2_2 = rearrange(x1, 'b (s d) f -> b s (d f)', s=5)  # 5 21 (6 38) -> 21 5 (6 38)
-                x2_2 = attn2_ff2s[2](x2_2)
-                x2_2 = attn2_ff2s[3](x2_2)
-                x_8 = rearrange(x2_2, 'b s (d f) -> b (s d) f', f=f)
-                x_ = torch.cat((x_7, x_8), dim=1)
-                x_ = attn1_ff1s[14](x_)
-                x_ = attn1_ff1s[15](x_)
-                x2 = x_[:, 0:x_7.shape[1], :]
+                x_cont_enc = torch.empty(n1, n2, self.dim).to(self.device)
+                for i in range(n2):
+                    x_cont_enc[:, i, :] = self.simple_MLP[i](x2_3[:, i])
 
-                x3_1 = rearrange(x2, 'b (s d) f -> b d (s f)', s=5)  # 5 21 (6 38) -> 21 6 (5 38)
-                x3_1 = attn3_ff3s[0](x3_1)
-                x3_1 = attn3_ff3s[1](x3_1)
-                x_9 = rearrange(x3_1, 'b d (s f) -> b (s d) f', f=f)
-                x3_2 = rearrange(x2, 'b (s d) f-> d b (s f)', s=5)  # 21 6 (5 38) -> 6 21 (5 38)
-                x3_2 = attn3_ff3s[2](x3_2)
-                x3_2 = attn3_ff3s[3](x3_2)
-                x_10= rearrange(x3_2, 'd b (s f) -> b (s d) f', s=5)
+                x3_1 = attn1_ff1s[4](x_cont_enc)
+                x3_2 = attn1_ff1s[5](x3_1)
 
-                # x_ = torch.cat((x_1, x_2, x_3, x_4, x_5, x_6,x_7,x_8,x_9,x_10), dim=1)
-                x_ = torch.cat((x_9,x_10), dim=1)
-                x_ = attn1_ff1s[16](x_)
-                x_ = attn1_ff1s[17](x_)
-                x = x_[:, 0:x_9.shape[1], :]
+                x_cont_dec = torch.empty(n1, n2).to(self.device)
+                for i in range(n2):
+                    x_cont_dec[:, i] = self.simple_MLP_2[i](x3_2[:, i,:]).squeeze()
+                x = rearrange(x_cont_dec, '(b d) f -> b d f',d=5)
+
+                # x2_1 = rearrange(x1, 'b (s d) f -> s b (d f)', s=5)  # (21 5) 6 38 -> 5 21 (6 38)
+                # x2_1 = attn2_ff2s[0](x2_1)
+                # x2_1 = attn2_ff2s[1](x2_1)
+                # x2 = rearrange(x2_1, 's b (d f) -> b (s d) f', f=f)
+                # x2_2 = rearrange(x1, 'b (s d) f -> b s (d f)', s=5)  # 5 21 (6 38) -> 21 5 (6 38)
+                # x2_2 = attn2_ff2s[2](x2_2)
+                # x2_2 = attn2_ff2s[3](x2_2)
+                # x2 += rearrange(x2_2, 'b s (d f) -> b (s d) f', f=f)
+                # x2 /= 2.0
+                #
+                # x3_1 = rearrange(x2, 'b (s d) f -> b d (s f)', s=5)  # 5 21 (6 38) -> 21 6 (5 38)
+                # x3_1 = attn3_ff3s[0](x3_1)
+                # x3_1 = attn3_ff3s[1](x3_1)
+                # x3 = rearrange(x3_1, 'b d (s f) -> b (s d) f', f=f)
+                # x3_2 = rearrange(x2, 'b (s d) f-> d b (s f)', s=5)  # 21 6 (5 38) -> 6 21 (5 38)
+                # x3_2 = attn3_ff3s[2](x3_2)
+                # x3_2 = attn3_ff3s[3](x3_2)
+                # x3 += rearrange(x3_2, 'd b (s f) -> b (s d) f', s=5)
+                # x3 /= 2.0
+                # x = x1
+
         else:
             for attn1, ff1 in self.layers:
                 x = rearrange(x, 'b n d -> 1 b (n d)')

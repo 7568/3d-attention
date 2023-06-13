@@ -170,11 +170,11 @@ def analysis_by_moneyness_maturity(result_df,max_day=210,tc='table'):
     ws.append(['Moneyness', 'Maturity', 'RMSE','MAE'])
     year_info = result_df
     moneyness_less_097 = year_info[year_info['moneyness'] <= 0.97]
-    # print(f'moneyness_less_097.shape : {moneyness_less_097.shape}')
+    print(f'moneyness_less_097.shape : {moneyness_less_097.shape}')
     moneyness_in_097_103 = year_info.loc[(year_info['moneyness'] > 0.97) & (year_info['moneyness'] <= 1.03)]
-    # print(f'moneyness_in_097_103.shape : {moneyness_in_097_103.shape}')
+    print(f'moneyness_in_097_103.shape : {moneyness_in_097_103.shape}')
     moneyness_more_103 = year_info[year_info['moneyness'] > 1.03]
-    # print(f'moneyness_more_103.shape : {moneyness_more_103.shape}')
+    print(f'moneyness_more_103.shape : {moneyness_more_103.shape}')
     moneyness_infos = {'<0.97':moneyness_less_097,'0.97 ~ 1.03':moneyness_in_097_103,'≥1.03':moneyness_more_103,}
     for moneyness_str in moneyness_infos:
         moneyness_info = moneyness_infos[moneyness_str]
@@ -183,7 +183,7 @@ def analysis_by_moneyness_maturity(result_df,max_day=210,tc='table'):
             maturity = moneyness_info.loc[(moneyness_info['RemainingTerm'] >= d) & (moneyness_info['RemainingTerm'] < (d+span_days))]
             rmse, mae = show_regression_result(maturity['y_test_true'], maturity['y_test_hat'],def_print=False)
             # print(f'{moneyness_str} ,  maturity : {d} ~ {d+span_days}   rmse : {rmse} , mae : {mae}')
-            print(rmse)
+            print("{:.4g}".format(rmse))
             ws.append([moneyness_str, f'{d} ~ {d+span_days}', "{:.4g}".format(rmse), "{:.4g}".format(mae)])
         if max_day>270:
             d = 210
@@ -191,7 +191,7 @@ def analysis_by_moneyness_maturity(result_df,max_day=210,tc='table'):
                 (moneyness_info['RemainingTerm'] >= d) & (moneyness_info['RemainingTerm'] < (max_day))]
             rmse, mae = show_regression_result(maturity['y_test_true'], maturity['y_test_hat'], def_print=False)
             # print(f'{moneyness_str} ,  maturity : {d} ~ {d+span_days}   rmse : {rmse} , mae : {mae}')
-            print(rmse)
+            print("{:.4g}".format(rmse))
             ws.append([moneyness_str, f'{d} ~ {d + max_day}', "{:.4g}".format(rmse), "{:.4g}".format(mae)])
     wb.save(f'{tc}.xlsx')
 
@@ -206,7 +206,7 @@ def load_2_d_data(use_much_features,prepare_home_path,normal_type):
                      'StrikePrice', 'RemainingTerm', 'ClosePrice']
     cat_features = []
     if use_much_features:
-        less_features = ['TheoreticalPrice', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho',
+        less_features = ['Delta', 'Gamma', 'Vega', 'Theta', 'Rho',
                          'OpenPrice', 'HighPrice', 'LowPrice', 'SettlePrice', 'Change1', 'Change2', 'Volume',
                          'Position', 'Amount', 'PositionChange', 'MainSign',
                          'rate_1_formatted', 'rate_2_formatted', 'rate_3_formatted', 'rate_7_formatted',

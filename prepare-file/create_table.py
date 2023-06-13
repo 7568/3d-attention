@@ -121,6 +121,7 @@ def create_table_002(ta):
     print(df.shape)
     df = caculate_df_year(df)
 
+
     mask_2020 = (df['TradingDate'] < pd.Timestamp('2023-01-01')) & (df['TradingDate'] > pd.Timestamp('2019-12-31'))
     df_year_2020_2022 = df[mask_2020]
     print(f'df_year_2020_2022.shape : {df_year_2020_2022.shape}')
@@ -138,7 +139,7 @@ def create_table_002(ta):
 HOME_PATH = f'/home/liyu/data/hedging-option/20170101-20230101/'
 
 if __name__ == '__main__':
-    OPTION_SYMBOL = 'index-option/h_sh_300'
+    OPTION_SYMBOL = 'index-option/h_sh_300_option'
     DATA_HOME_PATH = HOME_PATH + "/" + OPTION_SYMBOL + "/"
     # reformatt_data()
 
@@ -149,7 +150,7 @@ if __name__ == '__main__':
     # reformatt_data()
     create_table_001('ETF50_sorted_by_years')
 
-    OPTION_SYMBOL = 'index-option/h_sh_300'
+    OPTION_SYMBOL = 'index-option/h_sh_300_option'
     DATA_HOME_PATH = HOME_PATH + "/" + OPTION_SYMBOL + "/"
     create_table_002('h_sh_300_sorted_by_moneyness')
 

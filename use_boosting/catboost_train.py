@@ -49,7 +49,7 @@ def train(train_x, train_y, validation_x, validation_y,dataset_name):
         from_file.load_model("CatBoostRegressor")
     else:
         from_file = model
-    model.save_model(f"catBoostRegressor_{dataset_name}")
+    model.save_model(f"catBoostRegressor_{dataset_name}_{use_much_features}")
     # make the prediction using the resulting model
     # y_train_hat = from_file.predict(train_pool)
     # y_validation_hat = from_file.predict(validation_pool)
@@ -79,14 +79,14 @@ def get_result(train_x, train_y, validation_x, validation_y, testing_x, testing_
     # util.analysis_by_moneyness_maturity(result_df, max_day, table_name)
 
 # PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/ETF50-option/'
-PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300/'
+PREPARE_HOME_PATH = '/home/liyu/data/hedging-option/20170101-20230101/index-option/h_sh_300_option/'
 if __name__ == '__main__':
     opt = init_parser()
     if opt.log_to_file:
         logger = util.init_log('catboost_delta_hedging_v2')
     # NORMAL_TYPE = 'min_max_norm'
     NORMAL_TYPE = 'mean_norm'
-    use_much_features = False
+    use_much_features = True
     max_depth = 8
     if use_much_features:
         max_depth = 12

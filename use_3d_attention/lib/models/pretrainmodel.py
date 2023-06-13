@@ -1,4 +1,4 @@
-from .model_v7 import *
+from .model_v0 import *
 
 
 class sep_MLP(nn.Module):
@@ -134,7 +134,9 @@ class ATTENTION_3D(nn.Module):
             self.mlp1 = sep_MLP(dim, self.num_categories//5, categories[:self.num_categories//5])
             self.mlp2 = sep_MLP(dim, self.num_continuous//5, np.ones(self.num_continuous).astype(int))
 
-        self.mlpfory = simple_MLP([dim, 128, y_dim])
+        # self.mlpfory = simple_MLP([35, 128, y_dim])
+        # self.mlpfory = simple_MLP([35+512, 128, y_dim])
+        self.mlpfory = nn.Linear(35+512, y_dim)
         self.pt_mlp = simple_MLP([dim * (self.num_continuous + self.num_categories)//5,
                                   6 * dim * (self.num_continuous + self.num_categories) // 5,
                                   dim * (self.num_continuous + self.num_categories) // 2])

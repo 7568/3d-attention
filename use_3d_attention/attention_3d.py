@@ -72,6 +72,11 @@ class SELF_ATTENTION(BaseModelTorch):
             self.model.transformer = nn.DataParallel(self.model.transformer, device_ids=self.args.gpu_ids)
             self.model.mlpfory = nn.DataParallel(self.model.mlpfory, device_ids=self.args.gpu_ids)
 
+    def get_scheduler(self,epochs, optimizer):
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
+                                                         milestones=[20, 30, 50, 80], gamma=0.1)
+        return scheduler
+
     def fit(self, X, y, X_val=None, y_val=None, training_trading_dates=None, validation_trading_dates=None):
 
         if self.args.objective == 'binary':
@@ -96,7 +101,7 @@ class SELF_ATTENTION(BaseModelTorch):
 
         train_ds = DataSetCatCon(X_train, y_train, self.args.cat_idx, self.args.objective, trading_dates=training_trading_dates)
         trainloader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4)
-
+        scheduler = self.get_scheduler(self.args.epochs, optimizer)
         min_val_loss_idx = 0
         min_mse = float('inf')
         loss_history = []
@@ -135,12 +140,14 @@ class SELF_ATTENTION(BaseModelTorch):
                 loss = criterion(y_outs, y_gts)
                 optimizer.zero_grad()
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
                 optimizer.step()
 
                 loss_history.append(loss.item())
                 rmse = mean_squared_error(y_gts.detach().cpu(), y_outs.detach().cpu(), squared=False)
                 rmses.append(rmse)
                 # print("Loss", loss.item())
+            scheduler.step()
 
             print(f'epoche " {epoch} , average loss : {np.array(loss_history).mean()} , average rmses : {np.array(rmses).mean()}')
             if epoch<10:
@@ -153,9 +160,12 @@ class SELF_ATTENTION(BaseModelTorch):
             if mse < min_mse:
                 min_mse = mse
                 min_val_loss_idx = epoch
+                use_much_features=''
+                if self.args.use_much_features:
+                    use_much_features='more_feature'
 
                 # Save the currently best model
-                self.save_model(filename_extension=f"{self.args.model_name}_{self.args.learning_rate}_best", directory="tmp")
+                self.save_model(filename_extension=f"{self.args.model_name}_{use_much_features}_{self.args.learning_rate}_best", directory="tmp")
 
             if min_val_loss_idx + self.args.early_stopping_rounds < epoch:
                 print("Validation loss has not improved for %d steps!" % self.args.early_stopping_rounds)
@@ -183,8 +193,11 @@ class SELF_ATTENTION(BaseModelTorch):
         _ds = DataSetCatCon(_data_X, _data_y, self.args.cat_idx, self.args.objective, trading_dates=_trading_dates)
         dataloader = DataLoader(_ds, batch_size=1, shuffle=False, num_workers=1)
         print(f'need_reload_model : {need_reload_model}')
+        use_much_features = ''
+        if self.args.use_much_features:
+            use_much_features = 'more_feature'
         if need_reload_model:
-            self.load_model(filename_extension=f"{self.args.model_name}_{self.args.learning_rate}_best",
+            self.load_model(filename_extension=f"{self.args.model_name}_{use_much_features}_{self.args.learning_rate}_best",
                             directory="tmp")
             # filename='/home/liyu/git/3d-attention/use_3d_attention/output/3d-attention/h_sh_300_option/tmp/m_3d-attention_0.0001_best.pt'
             # state_dict = torch.load(filename, map_location=torch.device(self.device))
@@ -220,16 +233,20 @@ class SELF_ATTENTION(BaseModelTorch):
         self._get_score(real_testing_y, predictions)
         x_conts = np.concatenate(x_conts)
         print(x_conts.shape)
-        underlying_scrt_close=x_conts[:,2]
-        strike_price=x_conts[:,4]
+        underlying_scrt_close=x_conts[:,-3]
+        strike_price=x_conts[:,-5]
+        normal_data = pd.read_csv(f'{self.args.prepare_home_path}/{self.args.dataset}/{self.args.normal_type}/normal_data.csv')
+        underlying_scrt_close = underlying_scrt_close*normal_data['UnderlyingScrtClose_std'][0]+normal_data['UnderlyingScrtClose_mean'][0]
+        strike_price = strike_price*normal_data['StrikePrice_std'][0]+normal_data['StrikePrice_mean'][0]
         moneyness = underlying_scrt_close/strike_price
-        remaining_term = np.round((x_conts[:,5] * 365))
+        remaining_term = x_conts[:,-6]
+        remaining_term = np.round((remaining_term * 365))
         testing_df=pd.DataFrame()
         testing_df.loc[:, 'moneyness'] = moneyness
         testing_df.loc[:, 'RemainingTerm'] = remaining_term
         testing_df.loc[:, 'y_test_true'] = np.concatenate(real_testing_y)
         testing_df.loc[:, 'y_test_hat'] = np.concatenate(predictions)
-        table_name = f'{self.args.dataset}_moneyness_maturity'
+        table_name = f'{self.args.dataset}_{use_much_features}_moneyness_maturity'
         lib_util.analysis_by_moneyness_maturity(testing_df, max_day, table_name)
 
     def predict_helper(self, data_X, _trading_dates=None,data_y = None,tag='testing',need_reload_model=True):
@@ -241,8 +258,11 @@ class SELF_ATTENTION(BaseModelTorch):
         _ds = DataSetCatCon(_data_X, _data_y, self.args.cat_idx, self.args.objective, trading_dates=_trading_dates)
         dataloader = DataLoader(_ds, batch_size=1, shuffle=False, num_workers=4)
         print(f'need_reload_model : {need_reload_model}')
+        use_much_features = ''
+        if self.args.use_much_features:
+            use_much_features = 'more_feature'
         if need_reload_model:
-            self.load_model(filename_extension=f"{self.args.model_name}_{self.args.learning_rate}_best",
+            self.load_model(filename_extension=f"{self.args.model_name}_{use_much_features}_{self.args.learning_rate}_best",
                             directory="tmp")
             self.model.to(self.device)
         predictions = []

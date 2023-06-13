@@ -604,12 +604,12 @@ if __name__ == '__main__':
     split_training_validation_test_by_date_3()
 
     # split_training_validation_test_by_date_2()  # 根据时间前后划分，比例为8：1：1
-    normalize_data(NORMAL_TYPE)
-    check_null(NORMAL_TYPE)
+    # normalize_data(NORMAL_TYPE)
+    # check_null(NORMAL_TYPE)
 
     OPTION_SYMBOL = 'index-option/h_sh_300_option'
     PREPARE_HOME_PATH = HOME_PATH + "/" + OPTION_SYMBOL + "/"
     split_training_validation_test_by_date_3()
     # split_training_validation_test_by_date_2()  # 根据时间前后划分，比例为8：1：1
-    normalize_data(NORMAL_TYPE)
-    check_null(NORMAL_TYPE)
+    # normalize_data(NORMAL_TYPE)
+    # check_null(NORMAL_TYPE)
