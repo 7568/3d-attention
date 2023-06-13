@@ -73,13 +73,17 @@ def train_model(use_much_features,dataset_name):
     # device = torch.device(f"cpu")
     NORMAL_TYPE = 'mean_norm'
     print(f"Device is {device}.")
-    # opt.batchsize = 1
+    opt.batchsize = 1
     trainloader, validationloader, testingloader, feature_num = util.load_sequence_data(use_much_features,
                                                                                         PREPARE_HOME_PATH, NORMAL_TYPE,
                                                                                         opt)
     test_periods = 1
     model = LSTM(input_size=feature_num, hidden_size=opt.hidden_size, output_size=test_periods,
                  num_layers=opt.num_layers).to(device)
+    # checkpoint = torch.load(f'lstm_best_model_{dataset_name}_{use_much_features}')
+    # model.load_state_dict(checkpoint['model_state_dict'])
+    # model.eval()
+    # opt.lr = 1.0000000000000002e-04
     criterion = nn.MSELoss().to(device)
     optimizer = optim.Adam(model.parameters(), lr=opt.lr)
     scheduler = get_scheduler(opt.epochs, optimizer)
@@ -155,10 +159,7 @@ use_much_features = True
 validation rmse : 0.004036936887173826 , mae : 0.002130362190093025
 testing rmse : 0.002060078733090324 , mae : 0.001335953877109254
 
-testing rmse : 0.0021062477859223757 , mae : 0.0013365024760541681
-
-opt.batchsize = 1
-testing rmse : 0.0023897050430628287 , mae : 0.0016731115554992702
+testing rmse : 0.001926164250946486 , mae : 0.0013577956596162876
 
 use_much_features = False
 validation rmse : 0.03754063364282469 , mae : 0.017040287596522707

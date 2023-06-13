@@ -15,6 +15,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 
 from data_openml import DataSetCatCon
+from data_openml import DataSetCatCon_2
 
 
 def remove_file_if_exists(path):
@@ -69,7 +70,10 @@ def load_sequence_data(use_much_features,prepare_home_path,normal_type,opt):
 
     training_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/training.csv')
     validation_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/validation.csv')
-    testing_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/testing.csv', parse_dates=['TradingDate'])
+    testing_df = pd.read_csv(f'{prepare_home_path}/{normal_type}/testing.csv')
+    training_trading_dates = training_df['TradingDate'].copy()
+    validation_trading_dates = validation_df['TradingDate'].copy()
+    testing_trading_dates = testing_df['TradingDate'].copy()
     less_features = ['ClosePrice', 'rate_7_formatted', 'UnderlyingScrtClose', 'ImpliedVolatility', 'StrikePrice',
                      'RemainingTerm']
     if use_much_features:
@@ -91,13 +95,19 @@ def load_sequence_data(use_much_features,prepare_home_path,normal_type,opt):
     testing_df = testing_df[less_features]
     sequence_length = 5
     features_n = len(less_features)//sequence_length
-    train_ds = DataSetCatCon(training_df,sequence_length,features_n)
+    if opt.batchsize==1:
+        train_ds = DataSetCatCon_2(training_df,sequence_length,features_n,training_trading_dates)
+        validation_ds = DataSetCatCon_2(validation_df,sequence_length,features_n,validation_trading_dates)
+        testing_ds = DataSetCatCon_2(testing_df,sequence_length,features_n,testing_trading_dates)
+    else:
+        train_ds = DataSetCatCon(training_df, sequence_length, features_n)
+        validation_ds = DataSetCatCon(validation_df, sequence_length, features_n)
+        testing_ds = DataSetCatCon(testing_df, sequence_length, features_n)
+
     trainloader = DataLoader(train_ds, batch_size=opt.batchsize, shuffle=True, num_workers=4)
-    validation_ds = DataSetCatCon(validation_df,sequence_length,features_n)
     validationloader = DataLoader(validation_ds, batch_size=opt.batchsize, shuffle=True, num_workers=4)
-    testing_ds = DataSetCatCon(testing_df,sequence_length,features_n)
     testingloader = DataLoader(testing_ds, batch_size=opt.batchsize, shuffle=True, num_workers=4)
-    return trainloader,validationloader,testingloader,features_n
+    return trainloader, validationloader, testingloader, features_n
 
 def show_regression_result(y_test_true, y_test_hat):
     rmse = mean_squared_error(y_test_true, y_test_hat, squared=False)

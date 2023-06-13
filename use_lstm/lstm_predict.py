@@ -47,8 +47,8 @@ def predict(use_much_features,dataset_name,max_day):
         y_hats = []
         y_s = []
         for x, y in tqdm(testingloader):
-            x = x.to(device).float()
-            y = y.to(device).float()
+            x = x.to(device).float().squeeze(0)
+            y = y.to(device).float().squeeze(0)
             y_hat = model(x)
             y_hats = np.append(y_hats, y_hat.squeeze().detach().cpu().numpy())
             y_s = np.append(y_s, y.detach().cpu().numpy())
